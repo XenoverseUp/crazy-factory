@@ -1,0 +1,13 @@
+{
+  "name": "crazy-factory",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "asc --target release",
+    "build:debug": "asc --target debug",
+    "start": "npm run build && w4 run-native build/cart.wasm",
+    "start:web": "npm run build && w4 run build/cart.wasm"
+  },
+  "devDependencies": {
+    "assemblyscript": "^0.20.14"
+  }
+}
