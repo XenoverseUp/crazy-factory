@@ -1,25 +1,16 @@
 import * as w4 from "./wasm4";
+import Game from "./Game/Game"
 
-const smiley = memory.data<u8>([
-    0b11000011,
-    0b10000001,
-    0b00100100,
-    0b00100100,
-    0b00000000,
-    0b00100100,
-    0b10011001,
-    0b11000011,
-]);
+const game: Game = new Game()
 
-export function update (): void {
-    store<u16>(w4.DRAW_COLORS, 2);
-    w4.text("My beautiful game!", 10, 10);
+export function start(): void {
+    store<u32>(w4.PALETTE, 0xe0f8cf, 0 * sizeof<u32>());   // light
+    store<u32>(w4.PALETTE, 0x7c3f58, 1 * sizeof<u32>());   // red
+    store<u32>(w4.PALETTE, 0x306850, 2 * sizeof<u32>());   // dark
+    store<u32>(w4.PALETTE, 0x86c06c, 3 * sizeof<u32>());   // green
+}
 
-    const gamepad = load<u8>(w4.GAMEPAD1);
-    if (gamepad & w4.BUTTON_1) {
-        store<u16>(w4.DRAW_COLORS, 3);
-    }
-
-    w4.blit(smiley, 76, 76, 8, 8, w4.BLIT_1BPP);
-    w4.text("Press X to blink", 16, 90);
+export function update(): void {
+    game.update()
+    game.draw()
 }
