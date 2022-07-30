@@ -1,13 +1,18 @@
-import * as w4 from "./wasm4";
 import Game from "./Game/Game"
+import { setColors } from "./utils";
 
 const game: Game = new Game()
 
 export function start(): void {
-    store<u32>(w4.PALETTE, 0xe0f8cf, 0 * sizeof<u32>());   // light
-    store<u32>(w4.PALETTE, 0x7c3f58, 1 * sizeof<u32>());   // red
-    store<u32>(w4.PALETTE, 0x306850, 2 * sizeof<u32>());   // dark
-    store<u32>(w4.PALETTE, 0x86c06c, 3 * sizeof<u32>());   // green
+    /**
+     * @transparent = store<u16>(w4.DRAW_COLORS, 0)
+     * @extralight = store<u16>(w4.DRAW_COLORS, 1)
+     * @light = store<u16>(w4.DRAW_COLORS, 2)
+     * @dark = store<u16>(w4.DRAW_COLORS, 3)
+     * @extradark = store<u16>(w4.DRAW_COLORS, 4)
+     */
+
+    setColors()
 }
 
 export function update(): void {
