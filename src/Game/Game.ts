@@ -2,7 +2,7 @@ import * as w4 from "../wasm4"
 import Machine from "./Machine"
 import ScienceStand from "./ScienceStand"
 
-import { Start, Tile } from "./Assets"
+import { ConfigureText, Start, Tile } from "./Assets"
 import { TILE_SIZE, WINDOW_SIZE, } from "../constants"
 
 enum GameState {
@@ -11,15 +11,24 @@ enum GameState {
 	GAME_OVER
 }
 
+enum Selection {
+	MACHINE_1 = 0,
+	MACHINE_2 = 1,
+	MACHINE_3 = 2,
+	SCIENCE_STAND = 3,
+}
+
 export default class Game {
 	private gameState: GameState
+	private selection: Selection = Selection.MACHINE_1
+	private selected: boolean = false
+	private prevGamepadState: u8
 	private gameOver: boolean = false
 	private balance: i16 = 500
-	private prevGamepadState: u8
 	private machines: Array<Machine> = [
-		new Machine(0, 0),
-		new Machine(0, 3),
-		new Machine(0, 6)
+		new Machine(0, 0, 0),
+		new Machine(1, 0, 3),
+		new Machine(2, 0, 6)
 	]
 
 	private scienceStand: ScienceStand = new ScienceStand()
@@ -99,10 +108,83 @@ export default class Game {
 		}
 
 		this.machines.forEach(machine => machine.draw())
+		Machine.drawPipes()
 		this.scienceStand.draw()
+		this.drawSelection()
+		if (!this.selected) this.drawSelectionPanel()
+		else this.drawControlPanel()
+
 	}
 
-	updateGame(): void { }
+	updateGame(): void {
+		this.handleGameInput()
+	}
+
+	handleGameInput(): void {
+		const gamepad = load<u8>(w4.GAMEPAD1)
+		const justPressed = gamepad & (gamepad ^ this.prevGamepadState)
+
+		if (!this.selected) {
+			if (justPressed & w4.BUTTON_DOWN) {
+				if (!([Selection.SCIENCE_STAND, Selection.MACHINE_3].includes(this.selection))) {
+					this.selection = this.selection + 1
+				}
+			}
+			else if (justPressed & w4.BUTTON_UP) {
+				if (!([Selection.SCIENCE_STAND, Selection.MACHINE_1].includes(this.selection))) {
+					this.selection = this.selection - 1
+				} else if (this.selection == Selection.SCIENCE_STAND) {
+					this.selection = Selection.MACHINE_1
+				}
+			}
+			else if (justPressed & w4.BUTTON_RIGHT) {
+				this.selection = Selection.SCIENCE_STAND
+			}
+			else if (justPressed & w4.BUTTON_LEFT) {
+				if (this.selection == Selection.SCIENCE_STAND) {
+					this.selection = Selection.MACHINE_3
+				}
+			}
+
+			if (justPressed & w4.BUTTON_2) {
+				this.selected = true
+			}
+		}
+		this.prevGamepadState = gamepad
+	}
+
+	drawSelection(): void {
+		store<u16>(w4.DRAW_COLORS, 0x0040)
+		if (this.selection == Selection.MACHINE_1) {
+			w4.rect(0, 0, 32, 32)
+		} else if (this.selection == Selection.MACHINE_2) {
+			w4.rect(0, 3 * TILE_SIZE, 32, 32)
+		} else if (this.selection == Selection.MACHINE_3) {
+			w4.rect(0, 6 * TILE_SIZE, 32, 32)
+		} else if (this.selection == Selection.SCIENCE_STAND) {
+			w4.rect(7 * TILE_SIZE, 5 * TILE_SIZE, 3 * TILE_SIZE, 3 * TILE_SIZE)
+		}
+	}
+
+	drawSelectionPanel(): void {
+		store<u16>(w4.DRAW_COLORS, 0x0001)
+		if (this.selection == Selection.MACHINE_1) {
+			w4.text("Machine 1", 46, 136)
+		} else if (this.selection == Selection.MACHINE_2) {
+			w4.text("Machine 2", 46, 136)
+		} else if (this.selection == Selection.MACHINE_3) {
+			w4.text("Machine 3", 46, 136)
+		} else if (this.selection == Selection.SCIENCE_STAND) {
+			w4.text("Science Stand", 29, 136)
+		}
+
+		w4.blit(ConfigureText, 42, 150, 80, 5, w4.BLIT_1BPP)
+	}
+
+	drawControlPanel(): void {
+		store<u16>(w4.DRAW_COLORS, 0x0001)
+		w4.text("Oh Jesus! Fuck", 26, 136)
+	}
 
 	/** GAME_OVER */
 
