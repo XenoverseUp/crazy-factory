@@ -4,6 +4,7 @@ import ScienceStand from "./ScienceStand"
 
 import { ConfigureText, Start, Tile } from "./Assets"
 import { TILE_SIZE, WINDOW_SIZE, } from "../constants"
+import { Point } from "../utils"
 
 enum GameState {
 	START,
@@ -20,8 +21,14 @@ enum Selection {
 
 export default class Game {
 	private gameState: GameState
+
 	private selection: Selection = Selection.MACHINE_1
+	private selectionDestinations: Map<Selection, Point<i16>> = new Map<Selection, Point<i16>>()
+	private selectionPosition: Point<u16> = new Point(0, 0)
+	private selectionLength: u16 = 32
 	private selected: boolean = false
+
+
 	private prevGamepadState: u8
 	private gameOver: boolean = false
 	private balance: i16 = 500
@@ -31,11 +38,20 @@ export default class Game {
 		new Machine(2, 0, 6)
 	]
 
+	private revenue: u16 = 2
+
+	private frameCount: u32 = 0
+
 	private scienceStand: ScienceStand = new ScienceStand()
 	private staticExpenses: Map<string, u8> = new Map<string, u8>()
 
 	constructor() {
 		this.gameState = GameState.START
+
+		this.selectionDestinations.set(Selection.MACHINE_1, new Point(0, 0))
+		this.selectionDestinations.set(Selection.MACHINE_2, new Point(0, 3 * TILE_SIZE))
+		this.selectionDestinations.set(Selection.MACHINE_3, new Point(0, 6 * TILE_SIZE))
+		this.selectionDestinations.set(Selection.SCIENCE_STAND, new Point(7 * TILE_SIZE, 5 * TILE_SIZE))
 
 		this.staticExpenses.set("rent", 150)
 		this.staticExpenses.set("electricity", 25) // +25 for each working level 1 machine
@@ -50,6 +66,7 @@ export default class Game {
 			this.handleStartInput()
 		} else if (this.gameState == GameState.IN_GAME) {
 			this.updateGame()
+			this.frameCount++
 		}
 	}
 
@@ -107,17 +124,21 @@ export default class Game {
 			}
 		}
 
+		this.drawSelection()
 		this.machines.forEach(machine => machine.draw())
 		Machine.drawPipes()
 		this.scienceStand.draw()
-		this.drawSelection()
 		if (!this.selected) this.drawSelectionPanel()
 		else this.drawControlPanel()
+		this.printBalance()
 
 	}
 
 	updateGame(): void {
 		this.handleGameInput()
+		if (this.frameCount % 60 == 0) {
+			this.balance += this.revenue
+		}
 	}
 
 	handleGameInput(): void {
@@ -155,15 +176,37 @@ export default class Game {
 
 	drawSelection(): void {
 		store<u16>(w4.DRAW_COLORS, 0x0040)
-		if (this.selection == Selection.MACHINE_1) {
-			w4.rect(0, 0, 32, 32)
-		} else if (this.selection == Selection.MACHINE_2) {
-			w4.rect(0, 3 * TILE_SIZE, 32, 32)
-		} else if (this.selection == Selection.MACHINE_3) {
-			w4.rect(0, 6 * TILE_SIZE, 32, 32)
-		} else if (this.selection == Selection.SCIENCE_STAND) {
-			w4.rect(7 * TILE_SIZE, 5 * TILE_SIZE, 3 * TILE_SIZE, 3 * TILE_SIZE)
+
+		const selectionSpeedX: u16 = u16(NativeMathf.ceil(NativeMathf.abs(
+			this.selectionDestinations.get(this.selection).x - this.selectionPosition.x
+		) / 5))
+		const selectionSpeedY: u16 = u16(NativeMathf.ceil(NativeMathf.abs(
+			this.selectionDestinations.get(this.selection).y - this.selectionPosition.y
+		) / 5))
+		const growSpeed: u16 = u16(NativeMathf.ceil(NativeMathf.abs(
+			(this.selection == Selection.SCIENCE_STAND ? 48 : 32) - this.selectionLength
+		) / 5))
+
+		w4.rect(this.selectionPosition.x, this.selectionPosition.y, this.selectionLength, this.selectionLength)
+
+		if ((this.selectionDestinations.get(this.selection).x - this.selectionPosition.x > 0)) {
+			this.selectionPosition.x += selectionSpeedX
+		} else if ((this.selectionDestinations.get(this.selection).x - this.selectionPosition.x < 0)) {
+			this.selectionPosition.x -= selectionSpeedX
 		}
+
+		if ((this.selectionDestinations.get(this.selection).y - this.selectionPosition.y > 0)) {
+			this.selectionPosition.y += selectionSpeedY
+		} else if ((this.selectionDestinations.get(this.selection).y - this.selectionPosition.y < 0)) {
+			this.selectionPosition.y -= selectionSpeedY
+		}
+
+		if (this.selection == Selection.SCIENCE_STAND && this.selectionLength < 48) {
+			this.selectionLength += growSpeed
+		} else if (!(this.selection == Selection.SCIENCE_STAND) && this.selectionLength > 32) {
+			this.selectionLength -= growSpeed
+		}
+
 	}
 
 	drawSelectionPanel(): void {
@@ -184,6 +227,19 @@ export default class Game {
 	drawControlPanel(): void {
 		store<u16>(w4.DRAW_COLORS, 0x0001)
 		w4.text("Oh Jesus! Fuck", 26, 136)
+	}
+
+
+	printBalance(): void {
+		let balanceSign = ""
+		if (this.balance > 0) {
+			balanceSign = "+"
+		} else if (this.balance < 0) {
+			balanceSign = "-"
+		}
+
+		store<u16>(w4.DRAW_COLORS, 0x0004)
+		w4.text(`${balanceSign}$${this.balance}`, 117, 5)
 	}
 
 	/** GAME_OVER */
