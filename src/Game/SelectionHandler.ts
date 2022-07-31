@@ -1,0 +1,91 @@
+import * as w4 from "../wasm4"
+import Point from "./Point"
+import { TILE_SIZE } from "../constants"
+
+export enum Selection {
+	MACHINE_1 = 0,
+	MACHINE_2 = 1,
+	MACHINE_3 = 2,
+	SCIENCE_STAND = 3,
+}
+
+export class SelectionHandler {
+	public selection: Selection = Selection.MACHINE_1
+	public selected: boolean = false
+	private destinations: Map<Selection, Point<i16>> = new Map<Selection, Point<i16>>()
+	private selectionPosition: Point<u8> = new Point(0, 0)
+	private selectionLength: u8 = 32
+
+	constructor() {
+		this.destinations.set(Selection.MACHINE_1, new Point(0, 0))
+		this.destinations.set(Selection.MACHINE_2, new Point(0, 3 * TILE_SIZE))
+		this.destinations.set(Selection.MACHINE_3, new Point(0, 6 * TILE_SIZE))
+		this.destinations.set(Selection.SCIENCE_STAND, new Point(7 * TILE_SIZE, 5 * TILE_SIZE))
+	}
+
+	handleSelectionInput(justPressed: u8): void {
+		if (!this.selected) {
+			if (justPressed & w4.BUTTON_DOWN) {
+				if (!([Selection.SCIENCE_STAND, Selection.MACHINE_3].includes(this.selection))) {
+					this.selection = this.selection + 1
+				}
+			}
+			else if (justPressed & w4.BUTTON_UP) {
+				if (!([Selection.SCIENCE_STAND, Selection.MACHINE_1].includes(this.selection))) {
+					this.selection = this.selection - 1
+				} else if (this.selection == Selection.SCIENCE_STAND) {
+					this.selection = Selection.MACHINE_1
+				}
+			}
+			else if (justPressed & w4.BUTTON_RIGHT) {
+				this.selection = Selection.SCIENCE_STAND
+			}
+			else if (justPressed & w4.BUTTON_LEFT) {
+				if (this.selection == Selection.SCIENCE_STAND) {
+					this.selection = Selection.MACHINE_3
+				}
+			}
+
+			if (justPressed & w4.BUTTON_2) {
+				this.selected = true
+			}
+		}
+	}
+
+	updateSelection(): void {
+		const selectionSpeedX: u8 = u8(NativeMathf.ceil(NativeMathf.abs(
+			this.destinations.get(this.selection).x - this.selectionPosition.x
+		) / 5))
+		const selectionSpeedY: u8 = u8(NativeMathf.ceil(NativeMathf.abs(
+			this.destinations.get(this.selection).y - this.selectionPosition.y
+		) / 5))
+		const growSpeed: u8 = u8(NativeMathf.ceil(NativeMathf.abs(
+			(this.selection == Selection.SCIENCE_STAND ? 48 : 32) - this.selectionLength
+		) / 5))
+
+		if ((this.destinations.get(this.selection).x - this.selectionPosition.x > 0)) {
+			this.selectionPosition.x += selectionSpeedX
+		} else if ((this.destinations.get(this.selection).x - this.selectionPosition.x < 0)) {
+			this.selectionPosition.x -= selectionSpeedX
+		}
+
+		if ((this.destinations.get(this.selection).y - this.selectionPosition.y > 0)) {
+			this.selectionPosition.y += selectionSpeedY
+		} else if ((this.destinations.get(this.selection).y - this.selectionPosition.y < 0)) {
+			this.selectionPosition.y -= selectionSpeedY
+		}
+
+		if (this.selection == Selection.SCIENCE_STAND && this.selectionLength < 48) {
+			this.selectionLength += growSpeed
+		} else if (!(this.selection == Selection.SCIENCE_STAND) && this.selectionLength > 32) {
+			this.selectionLength -= growSpeed
+		}
+
+	}
+
+	drawSelection(): void {
+		store<u16>(w4.DRAW_COLORS, 0x0040)
+		w4.rect(this.selectionPosition.x, this.selectionPosition.y, this.selectionLength, this.selectionLength)
+	}
+
+}

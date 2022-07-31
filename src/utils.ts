@@ -21,9 +21,3 @@ export function setColors(): void {
 	// store<u32>(w4.PALETTE, 0x293462, 3 * sizeof<u32>());
 }
 
-export class Point<T> {
-	constructor(
-		public x: T,
-		public y: T
-	) { }
-}

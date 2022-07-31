@@ -1,10 +1,11 @@
 import * as w4 from "../wasm4"
 import Machine from "./Machine"
 import ScienceStand from "./ScienceStand"
+import Point from "./Point"
 
 import { ConfigureText, Start, Tile } from "./Assets"
 import { TILE_SIZE, WINDOW_SIZE, } from "../constants"
-import { Point } from "../utils"
+import { SelectionHandler, Selection } from "./SelectionHandler"
 
 enum GameState {
 	START,
@@ -12,61 +13,34 @@ enum GameState {
 	GAME_OVER
 }
 
-enum Selection {
-	MACHINE_1 = 0,
-	MACHINE_2 = 1,
-	MACHINE_3 = 2,
-	SCIENCE_STAND = 3,
-}
-
 export default class Game {
 	private gameState: GameState
-
-	private selection: Selection = Selection.MACHINE_1
-	private selectionDestinations: Map<Selection, Point<i16>> = new Map<Selection, Point<i16>>()
-	private selectionPosition: Point<u16> = new Point(0, 0)
-	private selectionLength: u16 = 32
-	private selected: boolean = false
-
-
 	private prevGamepadState: u8
 	private gameOver: boolean = false
 	private balance: i16 = 500
 	private machines: Array<Machine> = [
-		new Machine(0, 0, 0),
-		new Machine(1, 0, 3),
-		new Machine(2, 0, 6)
+		new Machine(0, new Point(0, 0)),
+		new Machine(1, new Point(0, 3)),
+		new Machine(2, new Point(0, 6))
 	]
-
-	private revenue: u16 = 2
-
-	private frameCount: u32 = 0
-
 	private scienceStand: ScienceStand = new ScienceStand()
 	private staticExpenses: Map<string, u8> = new Map<string, u8>()
+	private selectionHandler: SelectionHandler = new SelectionHandler()
+
 
 	constructor() {
 		this.gameState = GameState.START
-
-		this.selectionDestinations.set(Selection.MACHINE_1, new Point(0, 0))
-		this.selectionDestinations.set(Selection.MACHINE_2, new Point(0, 3 * TILE_SIZE))
-		this.selectionDestinations.set(Selection.MACHINE_3, new Point(0, 6 * TILE_SIZE))
-		this.selectionDestinations.set(Selection.SCIENCE_STAND, new Point(7 * TILE_SIZE, 5 * TILE_SIZE))
 
 		this.staticExpenses.set("rent", 150)
 		this.staticExpenses.set("electricity", 25) // +25 for each working level 1 machine
 	}
 
-	setState(state: GameState): void {
-		this.gameState = state
-	}
 
 	update(): void {
 		if (this.gameState == GameState.START) {
 			this.handleStartInput()
 		} else if (this.gameState == GameState.IN_GAME) {
 			this.updateGame()
-			this.frameCount++
 		}
 	}
 
@@ -100,10 +74,15 @@ export default class Game {
 
 		store<u16>(w4.DRAW_COLORS, 0x0004)
 		w4.text("Press X to start", 17, 75)
-
 	}
 
 	/** IN_GAME */
+
+
+	updateGame(): void {
+		this.handleGameInput()
+		this.selectionHandler.updateSelection()
+	}
 
 	drawGame(): void {
 		store<u16>(w4.DRAW_COLORS, 0x0002)
@@ -124,100 +103,33 @@ export default class Game {
 			}
 		}
 
-		this.drawSelection()
+		this.selectionHandler.drawSelection()
 		this.machines.forEach(machine => machine.draw())
 		Machine.drawPipes()
 		this.scienceStand.draw()
-		if (!this.selected) this.drawSelectionPanel()
+		if (!this.selectionHandler.selected) this.drawSelectionPanel()
 		else this.drawControlPanel()
 		this.printBalance()
-
-	}
-
-	updateGame(): void {
-		this.handleGameInput()
-		if (this.frameCount % 60 == 0) {
-			this.balance += this.revenue
-		}
 	}
 
 	handleGameInput(): void {
 		const gamepad = load<u8>(w4.GAMEPAD1)
 		const justPressed = gamepad & (gamepad ^ this.prevGamepadState)
 
-		if (!this.selected) {
-			if (justPressed & w4.BUTTON_DOWN) {
-				if (!([Selection.SCIENCE_STAND, Selection.MACHINE_3].includes(this.selection))) {
-					this.selection = this.selection + 1
-				}
-			}
-			else if (justPressed & w4.BUTTON_UP) {
-				if (!([Selection.SCIENCE_STAND, Selection.MACHINE_1].includes(this.selection))) {
-					this.selection = this.selection - 1
-				} else if (this.selection == Selection.SCIENCE_STAND) {
-					this.selection = Selection.MACHINE_1
-				}
-			}
-			else if (justPressed & w4.BUTTON_RIGHT) {
-				this.selection = Selection.SCIENCE_STAND
-			}
-			else if (justPressed & w4.BUTTON_LEFT) {
-				if (this.selection == Selection.SCIENCE_STAND) {
-					this.selection = Selection.MACHINE_3
-				}
-			}
+		this.selectionHandler.handleSelectionInput(justPressed)
 
-			if (justPressed & w4.BUTTON_2) {
-				this.selected = true
-			}
-		}
 		this.prevGamepadState = gamepad
-	}
-
-	drawSelection(): void {
-		store<u16>(w4.DRAW_COLORS, 0x0040)
-
-		const selectionSpeedX: u16 = u16(NativeMathf.ceil(NativeMathf.abs(
-			this.selectionDestinations.get(this.selection).x - this.selectionPosition.x
-		) / 5))
-		const selectionSpeedY: u16 = u16(NativeMathf.ceil(NativeMathf.abs(
-			this.selectionDestinations.get(this.selection).y - this.selectionPosition.y
-		) / 5))
-		const growSpeed: u16 = u16(NativeMathf.ceil(NativeMathf.abs(
-			(this.selection == Selection.SCIENCE_STAND ? 48 : 32) - this.selectionLength
-		) / 5))
-
-		w4.rect(this.selectionPosition.x, this.selectionPosition.y, this.selectionLength, this.selectionLength)
-
-		if ((this.selectionDestinations.get(this.selection).x - this.selectionPosition.x > 0)) {
-			this.selectionPosition.x += selectionSpeedX
-		} else if ((this.selectionDestinations.get(this.selection).x - this.selectionPosition.x < 0)) {
-			this.selectionPosition.x -= selectionSpeedX
-		}
-
-		if ((this.selectionDestinations.get(this.selection).y - this.selectionPosition.y > 0)) {
-			this.selectionPosition.y += selectionSpeedY
-		} else if ((this.selectionDestinations.get(this.selection).y - this.selectionPosition.y < 0)) {
-			this.selectionPosition.y -= selectionSpeedY
-		}
-
-		if (this.selection == Selection.SCIENCE_STAND && this.selectionLength < 48) {
-			this.selectionLength += growSpeed
-		} else if (!(this.selection == Selection.SCIENCE_STAND) && this.selectionLength > 32) {
-			this.selectionLength -= growSpeed
-		}
-
 	}
 
 	drawSelectionPanel(): void {
 		store<u16>(w4.DRAW_COLORS, 0x0001)
-		if (this.selection == Selection.MACHINE_1) {
+		if (this.selectionHandler.selection == Selection.MACHINE_1) {
 			w4.text("Machine 1", 46, 136)
-		} else if (this.selection == Selection.MACHINE_2) {
+		} else if (this.selectionHandler.selection == Selection.MACHINE_2) {
 			w4.text("Machine 2", 46, 136)
-		} else if (this.selection == Selection.MACHINE_3) {
+		} else if (this.selectionHandler.selection == Selection.MACHINE_3) {
 			w4.text("Machine 3", 46, 136)
-		} else if (this.selection == Selection.SCIENCE_STAND) {
+		} else if (this.selectionHandler.selection == Selection.SCIENCE_STAND) {
 			w4.text("Science Stand", 29, 136)
 		}
 
@@ -245,6 +157,10 @@ export default class Game {
 	/** GAME_OVER */
 
 	/** EXTRAS */
+
+	setState(state: GameState): void {
+		this.gameState = state
+	}
 
 	finishDay(): void { } // calculate the balance and reset everything
 }
