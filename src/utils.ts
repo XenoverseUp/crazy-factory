@@ -1,4 +1,5 @@
 import * as w4 from "./wasm4"
+import Point from "./Game/Point"
 
 export function setColors(): void {
 
@@ -21,3 +22,6 @@ export function setColors(): void {
 	// store<u32>(w4.PALETTE, 0x293462, 3 * sizeof<u32>());
 }
 
+export function pixel(position: Point<u8>): void {
+	w4.hline(position.x, position.y, 1)
+}

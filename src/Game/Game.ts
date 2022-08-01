@@ -6,6 +6,7 @@ import Point from "./Point"
 import { ConfigureText, Start, Tile } from "./Assets"
 import { TILE_SIZE, WINDOW_SIZE, } from "../constants"
 import { SelectionHandler, Selection } from "./SelectionHandler"
+import { pixel } from "../utils"
 
 enum GameState {
 	START,
@@ -87,8 +88,8 @@ export default class Game {
 	drawGame(): void {
 		store<u16>(w4.DRAW_COLORS, 0x0002)
 		w4.rect(0, 0, 10 * TILE_SIZE, 8 * TILE_SIZE)
-		store<u16>(w4.DRAW_COLORS, 0x0004)
-		w4.rect(0, 8 * TILE_SIZE, 10 * TILE_SIZE, 2 * TILE_SIZE)
+		this.drawSelectionPanel()
+
 
 		for (let y = 0; y < 8; y += 1) {
 			for (let x = 0; x < 10; x += 2) {
@@ -107,7 +108,7 @@ export default class Game {
 		this.machines.forEach(machine => machine.draw())
 		Machine.drawPipes()
 		this.scienceStand.draw()
-		if (!this.selectionHandler.selected) this.drawSelectionPanel()
+		if (!this.selectionHandler.selected) this.drawSelectionName()
 		else this.drawControlPanel()
 		this.printBalance()
 	}
@@ -122,6 +123,31 @@ export default class Game {
 	}
 
 	drawSelectionPanel(): void {
+		store<u16>(w4.DRAW_COLORS, 0x0004)
+		w4.rect(0, 8 * TILE_SIZE, 10 * TILE_SIZE, 2 * TILE_SIZE)
+
+		store<u16>(w4.DRAW_COLORS, 0x0003)
+		w4.line(3, 8 * TILE_SIZE + 2, WINDOW_SIZE - 4, 8 * TILE_SIZE + 2)
+		w4.line(3, 10 * TILE_SIZE - 2, WINDOW_SIZE - 4, 10 * TILE_SIZE - 2)
+		w4.line(2, 8 * TILE_SIZE + 3, 2, WINDOW_SIZE - 3)
+		w4.line(WINDOW_SIZE - 3, 8 * TILE_SIZE + 3, WINDOW_SIZE - 3, WINDOW_SIZE - 3)
+		w4.rect(0, 9 * TILE_SIZE - 4, 2, 8)
+		w4.rect(WINDOW_SIZE - 2, 9 * TILE_SIZE - 4, 2, 8)
+		pixel(new Point(1, 9 * TILE_SIZE - 5))
+		pixel(new Point(1, 9 * TILE_SIZE + 4))
+		pixel(new Point(WINDOW_SIZE - 2, 9 * TILE_SIZE - 5))
+		pixel(new Point(WINDOW_SIZE - 2, 9 * TILE_SIZE + 4))
+		w4.vline(5, 8 * TILE_SIZE + 3, 2)
+		w4.hline(3, 8 * TILE_SIZE + 5, 2)
+		w4.vline(WINDOW_SIZE - 6, 8 * TILE_SIZE + 3, 2)
+		w4.hline(WINDOW_SIZE - 5, 8 * TILE_SIZE + 5, 2)
+		w4.vline(5, WINDOW_SIZE - 4, 2)
+		w4.hline(3, WINDOW_SIZE - 5, 2)
+		w4.vline(WINDOW_SIZE - 6, WINDOW_SIZE - 4, 2)
+		w4.hline(WINDOW_SIZE - 5, WINDOW_SIZE - 5, 2)
+	}
+
+	drawSelectionName(): void {
 		store<u16>(w4.DRAW_COLORS, 0x0001)
 		if (this.selectionHandler.selection == Selection.MACHINE_1) {
 			w4.text("Machine 1", 46, 136)
@@ -133,14 +159,8 @@ export default class Game {
 			w4.text("Science Stand", 29, 136)
 		}
 
-		w4.blit(ConfigureText, 42, 150, 80, 5, w4.BLIT_1BPP)
+		w4.blit(ConfigureText, 42, 148, 80, 5, w4.BLIT_1BPP)
 	}
-
-	drawControlPanel(): void {
-		store<u16>(w4.DRAW_COLORS, 0x0001)
-		w4.text("Oh Jesus! Fuck", 26, 136)
-	}
-
 
 	printBalance(): void {
 		let balanceSign = ""
@@ -153,6 +173,12 @@ export default class Game {
 		store<u16>(w4.DRAW_COLORS, 0x0004)
 		w4.text(`${balanceSign}$${this.balance}`, 117, 5)
 	}
+
+	drawControlPanel(): void {
+		store<u16>(w4.DRAW_COLORS, 0x0001)
+		w4.text("Oh..:.",26, 136)
+	}
+
 
 	/** GAME_OVER */
 
