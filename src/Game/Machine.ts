@@ -2,6 +2,8 @@ import * as w4 from "../wasm4"
 import { DownPipe, Machine as MachineSprite, Out, RightPipe, ToDownRightPipe, ToRightDownPipe, ToTopRightPipe } from "./Assets"
 import { TILE_SIZE } from "../constants"
 import Point from "./Point"
+import { SelectionHandler } from "./SelectionHandler"
+import { vtriangle } from "../utils"
 
 const pipeScene = [
 	[".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
@@ -16,11 +18,12 @@ const pipeScene = [
 
 
 export default class Machine {
-	private id: u8
+	public id: u8
 	private level: u8 = 1
 	private isWorking: boolean = false
 	private productPerDay: u8 = 4
 	private position: Point<u8>
+	private ppm: u8 = 2
 
 	constructor(id: u8, position: Point<u8>) {
 		this.id = id
@@ -52,5 +55,40 @@ export default class Machine {
 			}
 		}
 	}
+
+	handleControlPanelInput(justPressed: u8): void {
+		if(justPressed & w4.BUTTON_2) {
+			SelectionHandler.selected = false
+		} else if (justPressed & w4.BUTTON_UP) this.increasePPM()
+		 else if (justPressed & w4.BUTTON_DOWN) this.decreasePPM()
+	}
+
+	drawControlPanel(): void {
+		const gamepad = load<u8>(w4.GAMEPAD1)
+		store<u16>(w4.DRAW_COLORS, 0x0002)
+		if ((gamepad & w4.BUTTON_UP) || this.ppm == 8) {
+			store<u16>(w4.DRAW_COLORS, 0x0003)
+		}
+		vtriangle(new Point(15, 141), true)
+		store<u16>(w4.DRAW_COLORS, 0x0002)
+		if ((gamepad & w4.BUTTON_DOWN) || this.ppm == 2) {
+			store<u16>(w4.DRAW_COLORS, 0x0003)
+		}
+		vtriangle(new Point(15, 147), false)
+		store<u16>(w4.DRAW_COLORS, 0x0030)
+		// w4.rect(25, 137, 13, 15)
+		store<u16>(w4.DRAW_COLORS, 0x0001)
+		w4.text(this.ppm.toString() + " products", 28, 141)
+
+	}
+
+	increasePPM(): void {
+		if (this.ppm < 8) this.ppm++
+	}
+
+	decreasePPM(): void {
+		if (this.ppm > 2) this.ppm--
+	}
+
 
 }

@@ -108,7 +108,7 @@ export default class Game {
 		this.machines.forEach(machine => machine.draw())
 		Machine.drawPipes()
 		this.scienceStand.draw()
-		if (!this.selectionHandler.selected) this.drawSelectionName()
+		if (!SelectionHandler.selected) this.drawSelectionName()
 		else this.drawControlPanel()
 		this.printBalance()
 	}
@@ -117,7 +117,11 @@ export default class Game {
 		const gamepad = load<u8>(w4.GAMEPAD1)
 		const justPressed = gamepad & (gamepad ^ this.prevGamepadState)
 
-		this.selectionHandler.handleSelectionInput(justPressed)
+
+		if (SelectionHandler.selected) {
+			if (this.selectionHandler.selection == Selection.SCIENCE_STAND) this.scienceStand.handleControlPanelInput(justPressed)
+			else this.machines[this.selectionHandler.selection].handleControlPanelInput(justPressed)
+		} else this.selectionHandler.handleSelectionInput(justPressed)
 
 		this.prevGamepadState = gamepad
 	}
@@ -176,7 +180,12 @@ export default class Game {
 
 	drawControlPanel(): void {
 		store<u16>(w4.DRAW_COLORS, 0x0001)
-		w4.text("Oh..:.",26, 136)
+
+		if (this.selectionHandler.selection == Selection.SCIENCE_STAND) {
+			return this.scienceStand.drawControlPanel()
+		}
+
+		this.machines[this.selectionHandler.selection].drawControlPanel()
 	}
 
 
@@ -187,6 +196,7 @@ export default class Game {
 	setState(state: GameState): void {
 		this.gameState = state
 	}
+
 
 	finishDay(): void { } // calculate the balance and reset everything
 }

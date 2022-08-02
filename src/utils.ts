@@ -25,3 +25,15 @@ export function setColors(): void {
 export function pixel(position: Point<u8>): void {
 	w4.hline(position.x, position.y, 1)
 }
+
+export function vtriangle(position: Point<u8>, direction: boolean): void {
+	if (direction) {
+		w4.hline(position.x, position.y, 6)
+		w4.hline(position.x + 1, position.y - 1, 4)
+		w4.hline(position.x + 2, position.y - 2, 2)
+	} else {
+		w4.hline(position.x, position.y, 6)
+		w4.hline(position.x + 1, position.y + 1, 4)
+		w4.hline(position.x + 2, position.y + 2, 2)
+	}
+}

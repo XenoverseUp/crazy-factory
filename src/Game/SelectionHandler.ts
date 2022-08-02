@@ -10,8 +10,8 @@ export enum Selection {
 }
 
 export class SelectionHandler {
+	static selected: boolean = false
 	public selection: Selection = Selection.MACHINE_1
-	public selected: boolean = false
 	private destinations: Map<Selection, Point<i16>> = new Map<Selection, Point<i16>>()
 	private selectionPosition: Point<u8> = new Point(0, 0)
 	private selectionLength: u8 = 32
@@ -24,31 +24,29 @@ export class SelectionHandler {
 	}
 
 	handleSelectionInput(justPressed: u8): void {
-		if (!this.selected) {
-			if (justPressed & w4.BUTTON_DOWN) {
-				if (!([Selection.SCIENCE_STAND, Selection.MACHINE_3].includes(this.selection))) {
-					this.selection = this.selection + 1
-				}
+		if (justPressed & w4.BUTTON_DOWN) {
+			if (!([Selection.SCIENCE_STAND, Selection.MACHINE_3].includes(this.selection))) {
+				this.selection = this.selection + 1
 			}
-			else if (justPressed & w4.BUTTON_UP) {
-				if (!([Selection.SCIENCE_STAND, Selection.MACHINE_1].includes(this.selection))) {
-					this.selection = this.selection - 1
-				} else if (this.selection == Selection.SCIENCE_STAND) {
-					this.selection = Selection.MACHINE_1
-				}
+		}
+		else if (justPressed & w4.BUTTON_UP) {
+			if (!([Selection.SCIENCE_STAND, Selection.MACHINE_1].includes(this.selection))) {
+				this.selection = this.selection - 1
+			} else if (this.selection == Selection.SCIENCE_STAND) {
+				this.selection = Selection.MACHINE_1
 			}
-			else if (justPressed & w4.BUTTON_RIGHT) {
-				this.selection = Selection.SCIENCE_STAND
+		}
+		else if (justPressed & w4.BUTTON_RIGHT) {
+			this.selection = Selection.SCIENCE_STAND
+		}
+		else if (justPressed & w4.BUTTON_LEFT) {
+			if (this.selection == Selection.SCIENCE_STAND) {
+				this.selection = Selection.MACHINE_3
 			}
-			else if (justPressed & w4.BUTTON_LEFT) {
-				if (this.selection == Selection.SCIENCE_STAND) {
-					this.selection = Selection.MACHINE_3
-				}
-			}
+		}
 
-			if (justPressed & w4.BUTTON_2) {
-				this.selected = true
-			}
+		if (justPressed & w4.BUTTON_2) {
+			SelectionHandler.selected = true
 		}
 	}
 
@@ -87,5 +85,4 @@ export class SelectionHandler {
 		store<u16>(w4.DRAW_COLORS, 0x0040)
 		w4.rect(this.selectionPosition.x, this.selectionPosition.y, this.selectionLength, this.selectionLength)
 	}
-
 }
