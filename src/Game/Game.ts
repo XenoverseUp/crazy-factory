@@ -15,10 +15,9 @@ enum GameState {
 }
 
 export default class Game {
+	static balance: i16 = 500
 	private gameState: GameState
 	private prevGamepadState: u8
-	private gameOver: boolean = false
-	private balance: i16 = 500
 	private machines: Array<Machine> = [
 		new Machine(0, new Point(0, 0)),
 		new Machine(1, new Point(0, 3)),
@@ -82,7 +81,9 @@ export default class Game {
 
 	updateGame(): void {
 		this.handleGameInput()
-		this.selectionHandler.updateSelection()
+
+		if (!SelectionHandler.selected) this.selectionHandler.updateSelection()
+		else this.updateControlPanel()
 	}
 
 	drawGame(): void {
@@ -105,8 +106,8 @@ export default class Game {
 		}
 
 		this.selectionHandler.drawSelection()
-		this.machines.forEach(machine => machine.draw())
 		Machine.drawPipes()
+		this.machines.forEach(machine => machine.draw())
 		this.scienceStand.draw()
 		if (!SelectionHandler.selected) this.drawSelectionName()
 		else this.drawControlPanel()
@@ -168,14 +169,24 @@ export default class Game {
 
 	printBalance(): void {
 		let balanceSign = ""
-		if (this.balance > 0) {
+		if (Game.balance > 0) {
 			balanceSign = "+"
-		} else if (this.balance < 0) {
+		} else if (Game.balance < 0) {
 			balanceSign = "-"
 		}
 
 		store<u16>(w4.DRAW_COLORS, 0x0004)
-		w4.text(`${balanceSign}$${this.balance}`, 117, 5)
+		w4.text(`${balanceSign}$${Game.balance}`, 117, 5)
+	}
+
+	updateControlPanel(): void {
+
+		if (this.selectionHandler.selection == Selection.SCIENCE_STAND) {
+			return this.scienceStand.updateControlPanel()
+		}
+
+		this.machines[this.selectionHandler.selection].updateControlPanel()
+
 	}
 
 	drawControlPanel(): void {

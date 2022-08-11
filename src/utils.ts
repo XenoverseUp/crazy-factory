@@ -1,5 +1,6 @@
 import * as w4 from "./wasm4"
 import Point from "./Game/Point"
+import { Numbers } from "./Game/Assets";
 
 export function setColors(): void {
 
@@ -22,6 +23,7 @@ export function setColors(): void {
 	// store<u32>(w4.PALETTE, 0x293462, 3 * sizeof<u32>());
 }
 
+
 export function pixel(position: Point<u8>): void {
 	w4.hline(position.x, position.y, 1)
 }
@@ -37,3 +39,24 @@ export function vtriangle(position: Point<u8>, direction: boolean): void {
 		w4.hline(position.x + 2, position.y + 2, 2)
 	}
 }
+
+
+export function number(num: String, position: Point<u8>): void {
+
+	if (num.charAt(0) == "$") {
+		w4.blitSub(Numbers, position.x, position.y, 5, 5, 3 * 10, 0, 40, w4.BLIT_1BPP)
+
+		for (let i = 1; i < num.length; i++) {
+			w4.blitSub(Numbers, position.x + i * 4 + 2, position.y, 3, 5, 3 * u8(parseInt(num.charAt(i))), 0, 40, w4.BLIT_1BPP)
+		}
+	} else {
+		for (let i = 0; i < num.length; i++) {
+			w4.blitSub(Numbers, position.x + i * 4, position.y, 3, 5, 3 * u8(parseInt(num.charAt(i))), 0, 40, w4.BLIT_1BPP)
+		}
+	}
+}
+
+export const upgradeCosts: Int16Array = new Int16Array(3)
+upgradeCosts[0] = 500
+upgradeCosts[1] = 750
+upgradeCosts[2] = 1000
