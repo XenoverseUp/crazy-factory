@@ -82,7 +82,7 @@ export class SelectionHandler {
 	}
 
 	drawSelection(): void {
-		store<u16>(w4.DRAW_COLORS, 0x0040)
+		store<u16>(w4.DRAW_COLORS, 0x0042)
 		w4.rect(this.selectionPosition.x, this.selectionPosition.y, this.selectionLength, this.selectionLength)
 	}
 }

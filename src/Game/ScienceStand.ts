@@ -1,10 +1,12 @@
-import { TILE_SIZE } from "../constants";
-import { number, vtriangle } from "../utils";
 import * as w4 from "../wasm4"
-import { Dollar, LevelText, ProductPrices, Science, ScienceMachine } from "./Assets";
-import Game from "./Game";
-import Point from "./Point";
-import { SelectionHandler } from "./SelectionHandler";
+import Game from "./Game"
+import Package from "./Package"
+import Point from "./Point"
+
+import { TILE_SIZE } from "../constants"
+import { number, vtriangle } from "../utils"
+import { Dollar, LevelText, ProductPrices, Science, ScienceMachine } from "./Assets"
+import { SelectionHandler } from "./SelectionHandler"
 
 enum ControlPanelSelection {
 	RESEARCH = 0,
@@ -18,6 +20,10 @@ export default class ScienceStand {
 	private selectionPosition: Point<u8> = new Point(40, 130)
 	private selectionDestinations: Map<ControlPanelSelection, Point<i16>> = new Map<ControlPanelSelection, Point<i16>>()
 	private canResearch: boolean = false
+	private packages: Array<Package> = []
+	private frameCount: u8 = 0
+	public isPackaging: boolean = false
+	private packagingTimeout: u16 = 0
 
 
 	constructor() {
@@ -29,6 +35,7 @@ export default class ScienceStand {
 	}
 
 	draw(): void {
+		this.packages.forEach(pkg => pkg.draw())
 		store<u16>(w4.DRAW_COLORS, 0x0432)
 		w4.blit(ScienceMachine, 7 * TILE_SIZE, 5 * TILE_SIZE, 48, 48, w4.BLIT_2BPP)
 	}
@@ -39,10 +46,27 @@ export default class ScienceStand {
 			this.selection = ControlPanelSelection.RESEARCH
 			this.selectionPosition = this.selectionDestinations.get(ControlPanelSelection.RESEARCH).toU8()
 		} else if (justPressed & w4.BUTTON_RIGHT) {
-			 this.selection = ControlPanelSelection.PRICES
+			this.selection = ControlPanelSelection.PRICES
 		} else if (justPressed & w4.BUTTON_LEFT) {
 			this.selection = ControlPanelSelection.RESEARCH
 		}
+	}
+
+	update(): void {
+		this.packages.forEach(pkg => pkg.update())
+		if (++this.frameCount == 90) {
+			this.frameCount = 0
+			if (this.isPackaging && this.packagingTimeout > 1000) this.packages.push(new Package(3))
+		}
+
+		for (let i = 0; i < this.packages.length; i++)
+			this.packages.at(i).speed = 4
+
+		this.packages = this.packages.filter(pkg => pkg.position.x < 10 * TILE_SIZE - 8)
+
+		if (!this.isPackaging) this.packagingTimeout = 0
+		if (!(this.packagingTimeout > 1000)) this.packagingTimeout++
+
 	}
 
 	updateControlPanel(): void {

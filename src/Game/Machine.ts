@@ -28,9 +28,8 @@ enum ControlPanelSelection {
 export default class Machine {
 	public id: u8
 	private level: u8 = 1
-	private isWorking: boolean = false
+	public isWorking: boolean = false
 	private canUpgrade: boolean = false
-	private productPerDay: u8 = 4
 	private position: Point<u8>
 	public ppd: u8 = 4
 	private selection: ControlPanelSelection = ControlPanelSelection.POWER
@@ -190,15 +189,15 @@ export default class Machine {
 	}
 
 	drawInfo(): void {
-		store<u16>(w4.DRAW_COLORS, 0x0034)
+		store<u16>(w4.DRAW_COLORS, 0x4)
 		w4.rect(0, 8 * TILE_SIZE - 15, 160, 15)
 
 
 		store<u16>(w4.DRAW_COLORS, 0x0001)
-		if (this.selection == ControlPanelSelection.POWER) w4.blitSub(DefaultPrompts, 62, 8 * TILE_SIZE - 10, 34, 5, 0, 0, 144, w4.BLIT_1BPP)
-		if (this.selection == ControlPanelSelection.PPD) w4.blitSub(DefaultPrompts, 25, 8 * TILE_SIZE - 10, 109, 5, 35, 0, 144, w4.BLIT_1BPP)
+		if (this.selection == ControlPanelSelection.POWER) w4.blitSub(DefaultPrompts, 62, 8 * TILE_SIZE - 9, 34, 5, 0, 0, 144, w4.BLIT_1BPP)
+		if (this.selection == ControlPanelSelection.PPD) w4.blitSub(DefaultPrompts, 25, 8 * TILE_SIZE - 9, 109, 5, 35, 0, 144, w4.BLIT_1BPP)
 		if (this.selection == ControlPanelSelection.UPGRADE) {
-			if (!this.canUpgrade) w4.blit(ResearchToUpgrade, 9, 8 * TILE_SIZE - 10, 144, 5, w4.BLIT_1BPP)
+			if (!this.canUpgrade) w4.blit(ResearchToUpgrade, 9, 8 * TILE_SIZE - 9, 144, 5, w4.BLIT_1BPP)
 		}
 	}
 

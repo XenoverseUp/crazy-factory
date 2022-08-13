@@ -3,6 +3,7 @@ import Machine from "./Machine"
 import ScienceStand from "./ScienceStand"
 import Point from "./Point"
 
+
 import { ConfigureText, Start, Tile } from "./Assets"
 import { TILE_SIZE, WINDOW_SIZE, } from "../constants"
 import { SelectionHandler, Selection } from "./SelectionHandler"
@@ -26,6 +27,7 @@ export default class Game {
 	private scienceStand: ScienceStand = new ScienceStand()
 	private staticExpenses: Map<string, u8> = new Map<string, u8>()
 	private selectionHandler: SelectionHandler = new SelectionHandler()
+
 
 
 	constructor() {
@@ -82,6 +84,8 @@ export default class Game {
 	updateGame(): void {
 		this.handleGameInput()
 		this.machines.forEach(machine => machine.update())
+		this.scienceStand.update()
+		this.scienceStand.isPackaging = this.machines[0].isWorking || this.machines[1].isWorking || this.machines[2].isWorking
 
 		if (!SelectionHandler.selected) this.selectionHandler.updateSelection()
 		else this.updateControlPanel()
@@ -181,7 +185,6 @@ export default class Game {
 	}
 
 	updateControlPanel(): void {
-
 		if (this.selectionHandler.selection == Selection.SCIENCE_STAND) {
 			return this.scienceStand.updateControlPanel()
 		}
