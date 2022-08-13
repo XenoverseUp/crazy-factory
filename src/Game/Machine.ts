@@ -32,11 +32,12 @@ export default class Machine {
 	private canUpgrade: boolean = false
 	private productPerDay: u8 = 4
 	private position: Point<u8>
-	private ppd: u8 = 2
+	public ppd: u8 = 4
 	private selection: ControlPanelSelection = ControlPanelSelection.POWER
 	private selectionPosition: Point<u8> = new Point(17, 130)
 	private selectionDestinations: Map<ControlPanelSelection, Point<i16>> = new Map<ControlPanelSelection, Point<i16>>()
 	private packages: Array<Package> = []
+	private frameCount: u8 = 0
 
 	constructor(id: u8, position: Point<u8>) {
 		this.id = id
@@ -45,11 +46,23 @@ export default class Machine {
 		this.selectionDestinations.set(ControlPanelSelection.POWER, new Point(17, 130))
 		this.selectionDestinations.set(ControlPanelSelection.UPGRADE, new Point(77, 130))
 		this.selectionDestinations.set(ControlPanelSelection.PPD, new Point(138, 130))
-		this.packages.push(new Package(id))
 	}
 
+	update(): void {
+		this.packages.forEach(pkg => pkg.update())
+		if (++this.frameCount == u8(NativeMath.floor(480 / this.ppd))) {
+			this.frameCount = 0
+			if (this.isWorking) this.packages.push(new Package(this.id))
+		}
+
+		for (let i = 0; i < this.packages.length; i++)
+			this.packages.at(i).speed = this.ppd - 2
+
+		this.packages = this.packages.filter(pkg => pkg.position.x < 7 * TILE_SIZE)
+	}
 
 	draw(): void {
+		this.packages.forEach(pkg => pkg.draw())
 		store<u16>(w4.DRAW_COLORS, 0x0432)
 		w4.blit(MachineSprite, this.position.x * TILE_SIZE, this.position.y * TILE_SIZE, 2 * TILE_SIZE, 2 * TILE_SIZE, w4.BLIT_2BPP)
 
@@ -57,7 +70,6 @@ export default class Machine {
 		if (!this.isWorking) w4.text("!", this.position.x * TILE_SIZE + 7, this.position.y * TILE_SIZE + 13)
 		else w4.text(this.level.toString(), this.position.x * TILE_SIZE + 7, this.position.y * TILE_SIZE + 13)
 
-		this.packages.forEach(pkg => pkg.draw())
 	}
 
 	static drawPipes(): void {

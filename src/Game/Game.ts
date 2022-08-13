@@ -81,6 +81,7 @@ export default class Game {
 
 	updateGame(): void {
 		this.handleGameInput()
+		this.machines.forEach(machine => machine.update())
 
 		if (!SelectionHandler.selected) this.selectionHandler.updateSelection()
 		else this.updateControlPanel()

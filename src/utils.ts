@@ -1,6 +1,7 @@
 import * as w4 from "./wasm4"
 import Point from "./Game/Point"
 import { Numbers } from "./Game/Assets";
+// import { DirectionsT } from "./interfaces";
 
 export function setColors(): void {
 
@@ -60,3 +61,4 @@ export const upgradeCosts: Int16Array = new Int16Array(3)
 upgradeCosts[0] = 500
 upgradeCosts[1] = 750
 upgradeCosts[2] = 1000
+
