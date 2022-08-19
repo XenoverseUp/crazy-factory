@@ -7,7 +7,7 @@ import Point from "./Point"
 import { ConfigureText, Start, Tile } from "./Assets"
 import { TILE_SIZE, WINDOW_SIZE, } from "../constants"
 import { SelectionHandler, Selection } from "./SelectionHandler"
-import { pixel } from "../utils"
+import { number, pixel } from "../utils"
 
 enum GameState {
 	START,
@@ -16,7 +16,7 @@ enum GameState {
 }
 
 export default class Game {
-	static balance: i16 = 500
+	static balance: i16 = 10000
 	private gameState: GameState
 	private prevGamepadState: u8
 	private machines: Array<Machine> = [
@@ -83,9 +83,17 @@ export default class Game {
 
 	updateGame(): void {
 		this.handleGameInput()
-		this.machines.forEach(machine => machine.update())
+
+		for (let i = 0; i < this.machines.length; i++) {
+			this.machines[i].update()
+			this.machines[i].productPrice = this.scienceStand.productPrices[i]
+		}
+
+
+		this.scienceStand.machineLevels = this.machines.map<u8>(machine => machine.level)
 		this.scienceStand.update()
 		this.scienceStand.isPackaging = this.machines[0].isWorking || this.machines[1].isWorking || this.machines[2].isWorking
+
 
 		if (!SelectionHandler.selected) this.selectionHandler.updateSelection()
 		else this.updateControlPanel()
@@ -125,7 +133,7 @@ export default class Game {
 
 
 		if (SelectionHandler.selected) {
-			if (this.selectionHandler.selection == Selection.SCIENCE_STAND) this.scienceStand.handleControlPanelInput(justPressed)
+			if (this.selectionHandler.selection == Selection.SCIENCE_STAND) this.scienceStand.handleInput(justPressed)
 			else this.machines[this.selectionHandler.selection].handleControlPanelInput(justPressed)
 		} else this.selectionHandler.handleSelectionInput(justPressed)
 
@@ -181,7 +189,7 @@ export default class Game {
 		}
 
 		store<u16>(w4.DRAW_COLORS, 0x0004)
-		w4.text(`${balanceSign}$${Game.balance}`, 117, 5)
+		number(`${balanceSign}$${NativeMath.abs(Game.balance)}`, new Point(60, 5))
 	}
 
 	updateControlPanel(): void {

@@ -1,5 +1,5 @@
 import * as w4 from "../wasm4"
-import { DefaultPrompts, DownPipe, Machine as MachineSprite, OnOff, Out, ResearchToUpgrade, RightPipe, ToDownRightPipe, ToRightDownPipe, ToTopRightPipe, Upgrade } from "./Assets"
+import { DefaultPrompts, DownPipe, Machine as MachineSprite, MachineUpgrade, OnOff, Out, ResearchToUpgrade, RightPipe, Smoke, ToDownRightPipe, ToRightDownPipe, ToTopRightPipe, Upgrade, UpgradePrompt } from "./Assets"
 import { TILE_SIZE } from "../constants"
 import Point from "./Point"
 import { SelectionHandler } from "./SelectionHandler"
@@ -27,7 +27,7 @@ enum ControlPanelSelection {
 
 export default class Machine {
 	public id: u8
-	private level: u8 = 1
+	public level: u8 = 1
 	public isWorking: boolean = false
 	private canUpgrade: boolean = false
 	private position: Point<u8>
@@ -36,7 +36,12 @@ export default class Machine {
 	private selectionPosition: Point<u8> = new Point(17, 130)
 	private selectionDestinations: Map<ControlPanelSelection, Point<i16>> = new Map<ControlPanelSelection, Point<i16>>()
 	private packages: Array<Package> = []
+	public productPrice: u8 = 3
+	public productCost: u8 = 2 * this.level
+
 	private frameCount: u8 = 0
+	private smokeCount: u8 = 0
+
 
 	constructor(id: u8, position: Point<u8>) {
 		this.id = id
@@ -48,16 +53,27 @@ export default class Machine {
 	}
 
 	update(): void {
+		this.productCost = 2 * this.level
 		this.packages.forEach(pkg => pkg.update())
 		if (++this.frameCount == u8(NativeMath.floor(480 / this.ppd))) {
 			this.frameCount = 0
-			if (this.isWorking) this.packages.push(new Package(this.id))
+			if (this.isWorking) {
+				this.packages.push(new Package(this.id))
+				Game.balance -= this.productCost // Cost
+			}
 		}
+
+		if (this.isWorking) this.smokeCount++
+		if (this.smokeCount == 60) this.smokeCount = 0
 
 		for (let i = 0; i < this.packages.length; i++)
 			this.packages.at(i).speed = this.ppd - 2
 
+		const initialLength: u8 = u8(this.packages.length)
 		this.packages = this.packages.filter(pkg => pkg.position.x < 7 * TILE_SIZE)
+		const finalLength: u8 = u8(this.packages.length)
+		const sold = initialLength - finalLength
+		Game.balance += i16(sold * this.productPrice) // Price
 	}
 
 	draw(): void {
@@ -67,7 +83,12 @@ export default class Machine {
 
 		store<u16>(w4.DRAW_COLORS, 0x0001)
 		if (!this.isWorking) w4.text("!", this.position.x * TILE_SIZE + 7, this.position.y * TILE_SIZE + 13)
-		else w4.text(this.level.toString(), this.position.x * TILE_SIZE + 7, this.position.y * TILE_SIZE + 13)
+		else {
+			w4.text(this.level.toString(), this.position.x * TILE_SIZE + 7, this.position.y * TILE_SIZE + 13)
+			store<u16>(w4.DRAW_COLORS, 0x4)
+			w4.blitSub(Smoke, (this.position.x + 1) * TILE_SIZE - 5, this.position.y * TILE_SIZE, 6, 3, u8(this.smokeCount > 30) * 6, 0, 16, w4.BLIT_1BPP)
+		}
+
 
 	}
 
@@ -99,6 +120,10 @@ export default class Machine {
 			if (this.selection == ControlPanelSelection.POWER) {
 				this.isWorking = !this.isWorking
 			}
+
+			if (this.selection == ControlPanelSelection.UPGRADE && this.canUpgrade) {
+				this.upgrade()
+			}
 		}
 
 		if (this.selection == ControlPanelSelection.PPD) {
@@ -108,7 +133,7 @@ export default class Machine {
 	}
 
 	updateControlPanel(): void {
-		this.canUpgrade = (ScienceStand.upgradeLevel > this.level && Game.balance > upgradeCosts[this.level - 1] && this.level < 4) ? true : false
+		this.canUpgrade = (ScienceStand.upgradeLevel > this.level && this.level < 4 && Game.balance > upgradeCosts[this.level - 1]) ? true : false
 
 		const selectionSpeedX: u8 = u8(NativeMathf.ceil(NativeMathf.abs(
 			this.selectionDestinations.get(this.selection).x - this.selectionPosition.x
@@ -169,18 +194,12 @@ export default class Machine {
 		w4.oval(18, 145 + offsetPower, 4, 4)
 
 		// Upgrade Button
+		if (this.level == 4) return
 
-		const offsetUpgrade: u8 = ((gamepad & w4.BUTTON_1) && this.selection == ControlPanelSelection.UPGRADE && this.canUpgrade) ? 1 : 0
-
-
-		store<u16>(w4.DRAW_COLORS, 0x0003)
-		w4.hline(58, 149, 44)
-		w4.hline(58, 150, 44)
-		store<u16>(w4.DRAW_COLORS, 0x0002)
-		w4.rect(58, 138 + offsetUpgrade, 44, 11)
-		if (this.canUpgrade) store<u16>(w4.DRAW_COLORS, 0x0001)
-		else store<u16>(w4.DRAW_COLORS, 0x0003)
-		w4.blit(Upgrade, 63, 141 + offsetUpgrade, 40, 5, w4.BLIT_1BPP)
+		store<u16>(w4.DRAW_COLORS, 0x0321)
+		w4.blit(MachineUpgrade, 60, 135, 40, 16, w4.BLIT_2BPP)
+		store<u16>(w4.DRAW_COLORS, 0x3)
+		number(`$${upgradeCosts[this.level - 1]}`, new Point(71, 145))
 	}
 
 	drawSelection(): void {
@@ -198,6 +217,7 @@ export default class Machine {
 		if (this.selection == ControlPanelSelection.PPD) w4.blitSub(DefaultPrompts, 25, 8 * TILE_SIZE - 9, 109, 5, 35, 0, 144, w4.BLIT_1BPP)
 		if (this.selection == ControlPanelSelection.UPGRADE) {
 			if (!this.canUpgrade) w4.blit(ResearchToUpgrade, 9, 8 * TILE_SIZE - 9, 144, 5, w4.BLIT_1BPP)
+			else w4.blit(UpgradePrompt, 61, 8 * TILE_SIZE - 9, 48, 5, w4.BLIT_1BPP)
 		}
 	}
 
@@ -209,5 +229,8 @@ export default class Machine {
 		if (this.ppd > 2) this.ppd--
 	}
 
-
+	upgrade(): void {
+		Game.balance -= upgradeCosts[this.level - 1]
+		this.level++
+	}
 }

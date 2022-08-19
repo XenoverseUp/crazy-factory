@@ -1,3 +1,4 @@
+
 import * as w4 from "./wasm4"
 import Point from "./Game/Point"
 import { Numbers } from "./Game/Assets";
@@ -41,6 +42,18 @@ export function vtriangle(position: Point<u8>, direction: boolean): void {
 	}
 }
 
+export function htriangle(position: Point<u8>, direction: boolean): void {
+	if (direction) {
+		w4.vline(position.x, position.y, 6)
+		w4.vline(position.x - 1, position.y + 1, 4)
+		w4.vline(position.x - 2, position.y + 2, 2)
+	} else {
+		w4.vline(position.x, position.y, 6)
+		w4.vline(position.x + 1, position.y + 1, 4)
+		w4.vline(position.x + 2, position.y + 2, 2)
+	}
+}
+
 
 export function number(num: String, position: Point<u8>): void {
 
@@ -56,6 +69,7 @@ export function number(num: String, position: Point<u8>): void {
 		}
 	}
 }
+
 
 export const upgradeCosts: Int16Array = new Int16Array(3)
 upgradeCosts[0] = 500
