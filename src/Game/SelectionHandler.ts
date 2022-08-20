@@ -7,6 +7,7 @@ export enum Selection {
 	MACHINE_2 = 1,
 	MACHINE_3 = 2,
 	SCIENCE_STAND = 3,
+	SHOP = 4
 }
 
 export class SelectionHandler {
@@ -21,28 +22,25 @@ export class SelectionHandler {
 		this.destinations.set(Selection.MACHINE_2, new Point(0, 3 * TILE_SIZE))
 		this.destinations.set(Selection.MACHINE_3, new Point(0, 6 * TILE_SIZE))
 		this.destinations.set(Selection.SCIENCE_STAND, new Point(7 * TILE_SIZE, 5 * TILE_SIZE))
+		this.destinations.set(Selection.SHOP, new Point(8 * TILE_SIZE, 0))
 	}
 
 	handleSelectionInput(justPressed: u8): void {
 		if (justPressed & w4.BUTTON_DOWN) {
-			if (!([Selection.SCIENCE_STAND, Selection.MACHINE_3].includes(this.selection))) {
-				this.selection = this.selection + 1
-			}
+			if ([Selection.MACHINE_1, Selection.MACHINE_2].includes(this.selection)) this.selection = this.selection + 1
+			else if (this.selection == Selection.SHOP) this.selection = Selection.SCIENCE_STAND
 		}
 		else if (justPressed & w4.BUTTON_UP) {
-			if (!([Selection.SCIENCE_STAND, Selection.MACHINE_1].includes(this.selection))) {
-				this.selection = this.selection - 1
-			} else if (this.selection == Selection.SCIENCE_STAND) {
-				this.selection = Selection.MACHINE_1
-			}
+			if ([Selection.MACHINE_2, Selection.MACHINE_3].includes(this.selection)) this.selection--
+			else if (this.selection == Selection.SCIENCE_STAND) this.selection = Selection.SHOP
 		}
 		else if (justPressed & w4.BUTTON_RIGHT) {
-			this.selection = Selection.SCIENCE_STAND
+			if (this.selection == Selection.MACHINE_1) this.selection = Selection.SHOP
+			else if ([Selection.MACHINE_2, Selection.MACHINE_3].includes(this.selection)) this.selection = Selection.SCIENCE_STAND
 		}
 		else if (justPressed & w4.BUTTON_LEFT) {
-			if (this.selection == Selection.SCIENCE_STAND) {
-				this.selection = Selection.MACHINE_3
-			}
+			if (this.selection == Selection.SCIENCE_STAND) this.selection = Selection.MACHINE_3
+			else if (this.selection == Selection.SHOP) this.selection = Selection.MACHINE_1
 		}
 
 		if (justPressed & w4.BUTTON_2) {

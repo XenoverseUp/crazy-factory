@@ -7,7 +7,8 @@ import Point from "./Point"
 import { ConfigureText, Start, Tile } from "./Assets"
 import { TILE_SIZE, WINDOW_SIZE, } from "../constants"
 import { SelectionHandler, Selection } from "./SelectionHandler"
-import { number, pixel } from "../utils"
+import { pixel, withSign } from "../utils"
+import Shop from "./Shop"
 
 enum GameState {
 	START,
@@ -17,6 +18,7 @@ enum GameState {
 
 export default class Game {
 	static balance: i16 = 10000
+	static satisfaction: u16 = 2000
 	private gameState: GameState
 	private prevGamepadState: u8
 	private machines: Array<Machine> = [
@@ -25,9 +27,9 @@ export default class Game {
 		new Machine(2, new Point(0, 6))
 	]
 	private scienceStand: ScienceStand = new ScienceStand()
+	private shop: Shop = new Shop()
 	private staticExpenses: Map<string, u8> = new Map<string, u8>()
 	private selectionHandler: SelectionHandler = new SelectionHandler()
-
 
 
 	constructor() {
@@ -94,9 +96,11 @@ export default class Game {
 		this.scienceStand.update()
 		this.scienceStand.isPackaging = this.machines[0].isWorking || this.machines[1].isWorking || this.machines[2].isWorking
 
+		this.shop.update()
 
-		if (!SelectionHandler.selected) this.selectionHandler.updateSelection()
-		else this.updateControlPanel()
+		this.selectionHandler.updateSelection()
+
+		if (SelectionHandler.selected) this.updateControlPanel()
 	}
 
 	drawGame(): void {
@@ -122,6 +126,7 @@ export default class Game {
 		Machine.drawPipes()
 		this.machines.forEach(machine => machine.draw())
 		this.scienceStand.draw()
+		this.shop.draw()
 		if (!SelectionHandler.selected) this.drawSelectionName()
 		else this.drawControlPanel()
 		this.printBalance()
@@ -134,7 +139,9 @@ export default class Game {
 
 		if (SelectionHandler.selected) {
 			if (this.selectionHandler.selection == Selection.SCIENCE_STAND) this.scienceStand.handleInput(justPressed)
+			else if (this.selectionHandler.selection == Selection.SHOP) this.shop.handleInput(justPressed)
 			else this.machines[this.selectionHandler.selection].handleControlPanelInput(justPressed)
+
 		} else this.selectionHandler.handleSelectionInput(justPressed)
 
 		this.prevGamepadState = gamepad
@@ -175,26 +182,28 @@ export default class Game {
 			w4.text("Machine 3", 46, 136)
 		} else if (this.selectionHandler.selection == Selection.SCIENCE_STAND) {
 			w4.text("Science Stand", 29, 136)
+		} else if (this.selectionHandler.selection == Selection.SHOP) {
+			w4.text("Shop", 64, 136)
 		}
 
 		w4.blit(ConfigureText, 42, 148, 80, 5, w4.BLIT_1BPP)
 	}
 
 	printBalance(): void {
-		let balanceSign = ""
-		if (Game.balance > 0) {
-			balanceSign = "+"
-		} else if (Game.balance < 0) {
-			balanceSign = "-"
+		let balanceSign: String = '+'
+		if (Game.balance < 0) {
+			balanceSign = '-'
 		}
 
 		store<u16>(w4.DRAW_COLORS, 0x0004)
-		number(`${balanceSign}$${NativeMath.abs(Game.balance)}`, new Point(60, 5))
+		withSign(balanceSign, `$${u16(NativeMath.abs(Game.balance))}`, new Point(60, 5))
 	}
 
 	updateControlPanel(): void {
 		if (this.selectionHandler.selection == Selection.SCIENCE_STAND) {
 			return this.scienceStand.updateControlPanel()
+		} else if (this.selectionHandler.selection == Selection.SHOP) {
+			return this.shop.updateControlPanel()
 		}
 
 		this.machines[this.selectionHandler.selection].updateControlPanel()
@@ -206,6 +215,8 @@ export default class Game {
 
 		if (this.selectionHandler.selection == Selection.SCIENCE_STAND) {
 			return this.scienceStand.drawControlPanel()
+		} else if (this.selectionHandler.selection == Selection.SHOP) {
+			return this.shop.drawControlPanel()
 		}
 
 		this.machines[this.selectionHandler.selection].drawControlPanel()

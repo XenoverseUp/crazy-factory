@@ -64,7 +64,7 @@ export default class Machine {
 		}
 
 		if (this.isWorking) this.smokeCount++
-		if (this.smokeCount == 60) this.smokeCount = 0
+		if (this.smokeCount == 30) this.smokeCount = 0
 
 		for (let i = 0; i < this.packages.length; i++)
 			this.packages.at(i).speed = this.ppd - 2
@@ -86,7 +86,7 @@ export default class Machine {
 		else {
 			w4.text(this.level.toString(), this.position.x * TILE_SIZE + 7, this.position.y * TILE_SIZE + 13)
 			store<u16>(w4.DRAW_COLORS, 0x4)
-			w4.blitSub(Smoke, (this.position.x + 1) * TILE_SIZE - 5, this.position.y * TILE_SIZE, 6, 3, u8(this.smokeCount > 30) * 6, 0, 16, w4.BLIT_1BPP)
+			w4.blitSub(Smoke, (this.position.x + 1) * TILE_SIZE - 5, this.position.y * TILE_SIZE, 6, 3, u8(this.smokeCount > 15) * 6, 0, 16, w4.BLIT_1BPP)
 		}
 
 
