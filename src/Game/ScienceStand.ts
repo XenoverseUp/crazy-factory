@@ -6,7 +6,7 @@ import Point from "./Point"
 
 import { TILE_SIZE } from "../constants"
 import { htriangle, number, vtriangle } from "../utils"
-import { Back, ConfigurePrices, Dollar, LevelText, ProductPrices, Research, Science, ScienceMachine, PackageBig, OnProgress } from "./Assets"
+import { Back, ConfigurePrices, Dollar, LevelText, ProductPrices, Research, Science, ScienceMachine, PackageBig, OnProgress, Package2Big, Package3Big } from "./Assets"
 import { SelectionHandler } from "./SelectionHandler"
 
 enum ControlPanelSelection {
@@ -39,6 +39,7 @@ export default class ScienceStand {
 	private priceSelectionDestinations: Map<PriceSelection, Point<i16>> = new Map<PriceSelection, Point<i16>>()
 	public machineLevels: Array<u8> = new Array<u8>(3)
 	private researchCount: u16 = 0
+	static frameSinceLastUpgrade: u32 = 0
 
 
 	constructor() {
@@ -73,7 +74,10 @@ export default class ScienceStand {
 
 	handleInput(justPressed: u8): void {
 		if (this.showPrices) {
-			if (justPressed & w4.BUTTON_2) this.showPrices = false
+			if (justPressed & w4.BUTTON_2) {
+				Game.bass.reset().noLoop().A(4, "quarter", 50).play()
+				this.showPrices = false
+			}
 			else if ((justPressed & w4.BUTTON_DOWN) && this.priceSelection != PriceSelection.MACHINE_3) this.priceSelection++
 			else if ((justPressed & w4.BUTTON_UP) && this.priceSelection != PriceSelection.MACHINE_1) this.priceSelection--
 			else if ((justPressed & w4.BUTTON_RIGHT) && this.machineLevels[this.priceSelection] * 4 > this.productPrices[this.priceSelection]) this.productPrices[this.priceSelection]++
@@ -84,8 +88,13 @@ export default class ScienceStand {
 			} else if (justPressed & w4.BUTTON_LEFT) {
 				this.selection = ControlPanelSelection.RESEARCH
 			} else if (justPressed & w4.BUTTON_1) {
-				if (this.selection == ControlPanelSelection.PRICES) this.showPrices = true
+
+				if (this.selection == ControlPanelSelection.PRICES) {
+					Game.percussion.reset().noLoop().A(5, "quarter", 20).play()
+					this.showPrices = true
+				}
 				else if (this.selection == ControlPanelSelection.RESEARCH && !this.isResearching && this.canResearch) {
+					Game.percussion.reset().noLoop().A(5, "quarter", 20).play()
 					SelectionHandler.selected = false
 					this.isResearching = true
 					Game.balance -= this.researchCosts[ScienceStand.upgradeLevel - 1]
@@ -94,13 +103,14 @@ export default class ScienceStand {
 				SelectionHandler.selected = false
 				this.selection = ControlPanelSelection.RESEARCH
 				this.selectionPosition = this.selectionDestinations.get(ControlPanelSelection.RESEARCH).toU8()
+				Game.bass.reset().noLoop().A(4, "quarter", 50).play()
 			}
 
 		}
 	}
 
 	update(): void {
-		this.canResearch = (ScienceStand.upgradeLevel < 4 && Game.balance >= i16(this.researchCosts[ScienceStand.upgradeLevel - 1]) ) ? true : false
+		this.canResearch = (ScienceStand.upgradeLevel < 4 && Game.balance >= i16(this.researchCosts[ScienceStand.upgradeLevel - 1])) ? true : false
 		this.packages.forEach(pkg => pkg.update())
 		if (++this.frameCount == 90) {
 			this.frameCount = 0
@@ -229,8 +239,8 @@ export default class ScienceStand {
 		store<u16>(w4.DRAW_COLORS, 0x2)
 		number(`$${this.productPrices[0]}`, new Point(121 - (this.productPrices[0] > 9 ? 2 : 0), 63))
 
-		store<u16>(w4.DRAW_COLORS, 0x321)
-		w4.blit(PackageBig, 20, 80, 16, 12, w4.BLIT_2BPP)
+		store<u16>(w4.DRAW_COLORS, 0x031)
+		w4.blit(Package2Big, 20, 80, 16, 12, w4.BLIT_2BPP)
 		if (((gamepad & w4.BUTTON_LEFT) && this.priceSelection == PriceSelection.MACHINE_2) || this.machineLevels[1] == this.productPrices[1]) store<u16>(w4.DRAW_COLORS, 0x3)
 		else store<u16>(w4.DRAW_COLORS, 0x2)
 		htriangle(new Point(110, 83), true)
@@ -242,7 +252,7 @@ export default class ScienceStand {
 
 
 		store<u16>(w4.DRAW_COLORS, 0x321)
-		w4.blit(PackageBig, 20, 100, 16, 12, w4.BLIT_2BPP)
+		w4.blit(Package3Big, 20, 100, 16, 12, w4.BLIT_2BPP)
 		store<u16>(w4.DRAW_COLORS, 0x2)
 		if (((gamepad & w4.BUTTON_LEFT) && this.priceSelection == PriceSelection.MACHINE_3) || this.machineLevels[2] == this.productPrices[2]) store<u16>(w4.DRAW_COLORS, 0x3)
 		else store<u16>(w4.DRAW_COLORS, 0x2)
@@ -259,6 +269,7 @@ export default class ScienceStand {
 		if (this.researchCount == 360) {
 			this.researchCount = 0
 			this.isResearching = false
+			ScienceStand.frameSinceLastUpgrade = 0
 			ScienceStand.upgradeLevel++
 			return
 		}

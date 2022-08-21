@@ -74,13 +74,13 @@ export function number(num: String, position: Point<u8>): void {
 	}
 }
 
-export const ascendioCosts: Map<u8, u16> = new Map<u8,u16>()
+export const ascendioCosts: Map<u8, i16> = new Map<u8,i16>()
 ascendioCosts.set(1, 250)
 ascendioCosts.set(2, 350)
 ascendioCosts.set(3, 500)
 ascendioCosts.set(4, 750)
 
-export const depulsoCosts: Map<u8, u16> = new Map<u8,u16>()
+export const depulsoCosts: Map<u8, i16> = new Map<u8,i16>()
 depulsoCosts.set(1, 150)
 depulsoCosts.set(2, 200)
 depulsoCosts.set(3, 300)

@@ -1,11 +1,13 @@
 import * as w4 from "../wasm4"
 import { TILE_SIZE, WINDOW_SIZE } from "../constants";
-import { Ascendio, Back, CustomerSatisfaction, Depulso, MarketplacePrompts, MP_Potion, MP_Skins, Potion1, Potion2, PotionPrompts, Shop as ShopSprite } from "./Assets";
+import { Ascendio, Back, CustomerSatisfaction, Depulso, Machine, MarketplacePrompts, MP_Potion, MP_Skins, Potion1, Potion2, PotionPrompts, Shop as ShopSprite, Skin1, Skin1Prompt, Skin2Prompt, SkinPrompts, VagueSkin } from "./Assets";
 import { SelectionHandler } from "./SelectionHandler";
 import { ascendioCosts, depulsoCosts, number, pixel, withSign } from "../utils";
 import Point from "./Point";
 import Game from "./Game";
+import MachineClass from "./Machine"
 import ScienceStand from "./ScienceStand";
+import { Skin } from "./Machine";
 
 enum View {
 	DEFAULT = 0,
@@ -23,7 +25,9 @@ export default class Shop {
 	private currentSelection: PossibleSelections = PossibleSelections.FIRST
 	private selectionPosition: Point<u8>
 	private selectionPositionDestinations: Map<PossibleSelections, Point<i16>> = new Map<PossibleSelections, Point<i16>>()
-	private selected: boolean = false
+	static depulso: boolean = false
+	private depulsoCount: u16 = 0
+	static boughtSkins: Array<Skin> = []
 
 	constructor() {
 		this.selectionPositionDestinations.set(PossibleSelections.FIRST, new Point(TILE_SIZE - 2, 47))
@@ -33,14 +37,57 @@ export default class Shop {
 
 	handleInput(justPressed: u8): void {
 		if (justPressed & w4.BUTTON_2) {
+			Game.bass.reset().noLoop().A(4, "quarter", 50).play()
 			if (this.view == View.DEFAULT) SelectionHandler.selected = false
 			else this.view = View.DEFAULT
 		} else if (justPressed & w4.BUTTON_1) {
+			Game.percussion.reset().noLoop().A(5, "quarter", 20).play()
 			if (this.view == View.DEFAULT) {
 				if (this.currentSelection == PossibleSelections.FIRST) this.view = View.POTIONS
 				else this.view = View.SKINS
 
 				this.currentSelection = PossibleSelections.FIRST
+			} else if (this.view == View.POTIONS) {
+				if (this.currentSelection == PossibleSelections.FIRST) {
+					if (Game.balance >= ascendioCosts.get(ScienceStand.upgradeLevel)) {
+						if (Game.satisfaction < 1600) Game.satisfaction += 8000
+						else Game.satisfaction = 24000
+						Game.balance -= ascendioCosts.get(ScienceStand.upgradeLevel)
+						this.view = View.DEFAULT
+					}
+				}
+				else {
+					if (!Shop.depulso && Game.balance >= depulsoCosts.get(ScienceStand.upgradeLevel)) {
+						Shop.depulso = true
+						Game.balance -= depulsoCosts.get(ScienceStand.upgradeLevel)
+						this.view = View.DEFAULT
+					}
+				}
+			} else if (this.view == View.SKINS) {
+				if (this.currentSelection == PossibleSelections.FIRST) {
+					if (Shop.boughtSkins.includes(Skin.ROUND)) {
+						if (MachineClass.skin != Skin.ROUND) MachineClass.skin = Skin.ROUND
+						else MachineClass.skin = Skin.DEFAULT
+					} else if (Game.balance >= 1500) {
+						Shop.boughtSkins.push(Skin.ROUND)
+						Game.balance -= 1500
+						MachineClass.skin = Skin.ROUND
+						this.view = View.DEFAULT
+						SelectionHandler.selected = false
+					}
+				}
+				else {
+					if (Shop.boughtSkins.includes(Skin.VAGUE)) {
+						if (MachineClass.skin != Skin.VAGUE) MachineClass.skin = Skin.VAGUE
+						else MachineClass.skin = Skin.DEFAULT
+					} else if (Game.balance >= 2500) {
+						Shop.boughtSkins.push(Skin.VAGUE)
+						Game.balance -= 2500
+						MachineClass.skin = Skin.VAGUE
+						this.view = View.DEFAULT
+						SelectionHandler.selected = false
+					}
+				}
 			}
 
 		} else if (justPressed & w4.BUTTON_RIGHT) {
@@ -50,7 +97,10 @@ export default class Shop {
 		}
 	}
 
-	update(): void { }
+	update(): void {
+		if (Shop.depulso) this.depulsoCount++
+		if (this.depulsoCount == 1800) Shop.depulso = false
+	}
 
 	draw(): void {
 		store<u16>(w4.DRAW_COLORS, 0x0432)
@@ -95,7 +145,7 @@ export default class Shop {
 			pixel(new Point(140, 147))
 			pixel(new Point(140, 152))
 			store<u16>(w4.DRAW_COLORS, 0x1)
-			w4.rect(20, 148, u8(Math.round(f64(120) * (f64(Game.satisfaction) / f64(2400)))), 4)
+			w4.rect(20, 148, u8(Math.round(f64(120) * (f64(Game.satisfaction) / f64(24000)))), 4)
 
 		} else if (this.view == View.POTIONS) {
 			store<u16>(w4.DRAW_COLORS, 0x1)
@@ -123,7 +173,31 @@ export default class Shop {
 
 		} else if (this.view == View.SKINS) {
 			store<u16>(w4.DRAW_COLORS, 0x1)
-			w4.text("Skins", 60, 30)
+			w4.text("Machine Skins", 27, 30)
+
+			store<u16>(w4.DRAW_COLORS, 0x12)
+			w4.oval(TILE_SIZE + 11, 3 * TILE_SIZE + 7, 27, 27)
+			store<u16>(w4.DRAW_COLORS, 0x13)
+			w4.oval(TILE_SIZE + 14, 3 * TILE_SIZE + 10, 20, 20)
+
+			store<u16>(w4.DRAW_COLORS, 0x0321)
+			w4.blit(VagueSkin, WINDOW_SIZE - 4 * TILE_SIZE + 7, 3 * TILE_SIZE + 4, 32, 32, w4.BLIT_2BPP)
+
+			store<u16>(w4.DRAW_COLORS, 0x1)
+			w4.blitSub(SkinPrompts, 2 * TILE_SIZE - 3, 6 * TILE_SIZE - 6, 22, 5, 0, 0, 48, w4.BLIT_1BPP)
+			w4.blitSub(SkinPrompts, WINDOW_SIZE - 3 * TILE_SIZE - 2, 6 * TILE_SIZE - 6, 22, 6, 22, 0, 48, w4.BLIT_1BPP)
+
+			store<u16>(w4.DRAW_COLORS, 0x2)
+			number("$1500", new Point(2 * TILE_SIZE - 3, 6 * TILE_SIZE + 3))
+			number("$2500", new Point(WINDOW_SIZE - 3 * TILE_SIZE - 3, 6 * TILE_SIZE + 3))
+
+			store<u16>(w4.DRAW_COLORS, 0x1)
+			if (this.currentSelection == PossibleSelections.FIRST)
+				w4.blit(Skin1Prompt, 20, 9 * TILE_SIZE - 8, 120, 18, w4.BLIT_1BPP)
+			else w4.blit(Skin2Prompt, 24, 9 * TILE_SIZE - 8, 112, 18, w4.BLIT_1BPP)
+
+
+
 		}
 	}
 

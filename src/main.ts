@@ -13,6 +13,9 @@ export function start(): void {
      */
 
     setColors()
+    Game.melody1.play()
+    Game.bass.play()
+    Game.percussion.play()
 }
 
 export function update(): void {

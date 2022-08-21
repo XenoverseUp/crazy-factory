@@ -26,7 +26,7 @@ export default class Synth {
 			}
 			this.frame++;
 
-			if (this.frame == this.music[this.noteIndex].duration - 2) {
+			if (this.frame == this.music[this.noteIndex].duration) {
 				this.frame = 0;
 				if (this.music.length - 1 != this.noteIndex) this.noteIndex++;
 				else {
@@ -48,6 +48,20 @@ export default class Synth {
 	loop(): Synth {
 		this.config.loop = true;
 		return this;
+	}
+
+	noLoop(): Synth {
+		this.config.loop = false;
+		return this;
+	}
+
+	reset(): Synth {
+		this.music.length = 0
+		this.noteIndex = 0
+		this.frame = 0
+		this.playing = false
+		return this
+
 	}
 
 	C(octave: u8 = 4, noteType: String = "full", volume: u8 = 50): Synth {

@@ -4,21 +4,23 @@ import ScienceStand from "./ScienceStand"
 import Point from "./Point"
 
 
-import { ConfigureText, Start, Tile } from "./Assets"
+import { Back, ConfigureText, Info, Start, Tile } from "./Assets"
 import { TILE_SIZE, WINDOW_SIZE, } from "../constants"
 import { SelectionHandler, Selection } from "./SelectionHandler"
-import { pixel, withSign } from "../utils"
+import { number, pixel, withSign } from "../utils"
 import Shop from "./Shop"
+import Synth from "./Synth"
 
 enum GameState {
 	START,
 	IN_GAME,
+	INFO,
 	GAME_OVER
 }
 
 export default class Game {
-	static balance: i16 = 10000
-	static satisfaction: u16 = 2000
+	static balance: i16 = 1500
+	static satisfaction: i64 = 21000
 	private gameState: GameState
 	private prevGamepadState: u8
 	private machines: Array<Machine> = [
@@ -28,23 +30,41 @@ export default class Game {
 	]
 	private scienceStand: ScienceStand = new ScienceStand()
 	private shop: Shop = new Shop()
-	private staticExpenses: Map<string, u8> = new Map<string, u8>()
 	private selectionHandler: SelectionHandler = new SelectionHandler()
-
+	private frame: u8 = 0
+	private hasShownInfo: boolean = false
+	private infoCounter: u16 = 0
+	static melody1: Synth = new Synth(80)
+	static bass: Synth = new Synth(80, w4.TONE_TRIANGLE)
+	static percussion: Synth = new Synth(80, w4.TONE_NOISE)
 
 	constructor() {
 		this.gameState = GameState.START
 
-		this.staticExpenses.set("rent", 150)
-		this.staticExpenses.set("electricity", 25) // +25 for each working level 1 machine
+		this.setArpeggio()
+		Game.melody1
+			.loop()
+
+		this.setBass()
+		Game.bass.loop()
+
+		this.setPercussion()
+		Game.percussion.loop()
+
 	}
 
 
 	update(): void {
+		Game.melody1.update()
+		Game.bass.update()
+		Game.percussion.update()
+
 		if (this.gameState == GameState.START) {
 			this.handleStartInput()
 		} else if (this.gameState == GameState.IN_GAME) {
 			this.updateGame()
+		} else if (this.gameState == GameState.INFO) {
+			this.updateInfo()
 		}
 	}
 
@@ -53,6 +73,10 @@ export default class Game {
 			this.drawStart()
 		} else if (this.gameState == GameState.IN_GAME) {
 			this.drawGame()
+		} else if (this.gameState == GameState.INFO) {
+			this.drawInfo()
+		} else if (this.gameState == GameState.GAME_OVER) {
+			this.drawGameOver()
 		}
 	}
 
@@ -63,6 +87,9 @@ export default class Game {
 		const justPressed = gamepad & (gamepad ^ this.prevGamepadState)
 
 		if (justPressed & w4.BUTTON_1) {
+			Game.melody1.stop()
+			Game.bass.stop()
+			Game.percussion.stop()
 			this.setState(GameState.IN_GAME)
 		}
 
@@ -85,6 +112,18 @@ export default class Game {
 
 	updateGame(): void {
 		this.handleGameInput()
+		this.frame++
+		if (!this.hasShownInfo) this.infoCounter++
+
+		if (this.frame % 3 == 0) {
+			Game.satisfaction += this.calculateSatisfactionDiff()
+			if (Game.satisfaction > 24000) Game.satisfaction = 24000
+			if (Game.satisfaction < 20) Game.satisfaction = 20
+			this.frame = 0
+		}
+
+
+		if (this.machines.some(machine => machine.isWorking)) ScienceStand.frameSinceLastUpgrade++
 
 		for (let i = 0; i < this.machines.length; i++) {
 			this.machines[i].update()
@@ -101,6 +140,13 @@ export default class Game {
 		this.selectionHandler.updateSelection()
 
 		if (SelectionHandler.selected) this.updateControlPanel()
+
+		if (this.infoCounter == 1800) {
+			this.gameState = GameState.INFO
+			this.infoCounter = 0
+			this.hasShownInfo = true
+		}
+		if (Game.balance < -50) this.gameState = GameState.GAME_OVER
 	}
 
 	drawGame(): void {
@@ -137,12 +183,15 @@ export default class Game {
 		const justPressed = gamepad & (gamepad ^ this.prevGamepadState)
 
 
-		if (SelectionHandler.selected) {
-			if (this.selectionHandler.selection == Selection.SCIENCE_STAND) this.scienceStand.handleInput(justPressed)
-			else if (this.selectionHandler.selection == Selection.SHOP) this.shop.handleInput(justPressed)
-			else this.machines[this.selectionHandler.selection].handleControlPanelInput(justPressed)
+		if (this.gameState != GameState.INFO) {
+			if (SelectionHandler.selected) {
+				if (this.selectionHandler.selection == Selection.SCIENCE_STAND) this.scienceStand.handleInput(justPressed)
+				else if (this.selectionHandler.selection == Selection.SHOP) this.shop.handleInput(justPressed)
+				else this.machines[this.selectionHandler.selection].handleControlPanelInput(justPressed)
 
-		} else this.selectionHandler.handleSelectionInput(justPressed)
+			} else this.selectionHandler.handleSelectionInput(justPressed)
+		} else if (this.gameState == GameState.INFO && (justPressed & w4.BUTTON_2)) this.gameState = GameState.IN_GAME
+
 
 		this.prevGamepadState = gamepad
 	}
@@ -222,8 +271,41 @@ export default class Game {
 		this.machines[this.selectionHandler.selection].drawControlPanel()
 	}
 
+	/** INFO */
+
+	updateInfo(): void {
+		this.handleGameInput()
+	}
+
+	drawInfo(): void {
+		store<u16>(w4.DRAW_COLORS, 0x4)
+		w4.rect(0, 0, WINDOW_SIZE, WINDOW_SIZE)
+
+		store<u16>(w4.DRAW_COLORS, 0x0321)
+		w4.blit(Back, 5, 5, 44, 10, w4.BLIT_2BPP)
+
+		store<u16>(w4.DRAW_COLORS, 0x2)
+		w4.text("Wait a minute!", 24, 30)
+
+		store<u16>(w4.DRAW_COLORS, 0x1)
+		w4.blit(Info, 8, 50, 144, 66, w4.BLIT_2BPP)
+	}
+
 
 	/** GAME_OVER */
+
+
+
+	drawGameOver(): void {
+		store<u16>(w4.DRAW_COLORS, 0x4)
+		w4.rect(0, 0, WINDOW_SIZE, WINDOW_SIZE)
+
+		store<u16>(w4.DRAW_COLORS, 0x2)
+		w4.text("Game Over", 44, 76)
+
+	}
+
+
 
 	/** EXTRAS */
 
@@ -232,5 +314,95 @@ export default class Game {
 	}
 
 
-	finishDay(): void { } // calculate the balance and reset everything
+	calculateSatisfactionDiff(): i16 {
+		let diff: f64 = 0
+
+		// Product Price Related
+		const minRevenue: f64 = f64(this.machines.reduce((acc, mac) => acc + (mac.isWorking ? mac.level : 0), 0))
+		const maxRevenue: f64 = minRevenue * 4.0
+		const currentRevenue: f64 = f64(this.machines.reduce((acc, mac) => acc + (mac.isWorking ? mac.productPrice : 0), 0))
+
+		if (f64(currentRevenue) / f64(maxRevenue) > 0.75) diff -= 1
+		else if (f64(currentRevenue) / f64(maxRevenue) <= 0.4) diff += 1
+
+
+		// // // Production Speed Related
+		const totalProduction: u8 = u8(this.machines.reduce((acc, mac) => acc + (mac.isWorking ? mac.ppd : 0), 0))
+
+		if (totalProduction > 18) diff -= 1
+		else if (totalProduction >= 9) diff += 1
+
+
+		// Upgrade related issues
+		if (ScienceStand.frameSinceLastUpgrade > 3600 * 2 && this.machines.some(machine => machine.isWorking) && ScienceStand.upgradeLevel != 4) diff -= 3
+
+
+
+		return i16(diff)
+	}
+
+
+	setArpeggio(): void {
+		Game.melody1
+			.F(5, "quarter", 100)
+			.D(5, "quarter", 100)
+			.A(4, "quarter", 100)
+			.D(5, "quarter", 100)
+			.F(5, "quarter", 100)
+			.D(5, "quarter", 100)
+			.A(4, "quarter", 100)
+			.D(5, "quarter", 100)
+
+			.F(5, "quarter", 100)
+			.C(5, "quarter", 100)
+			.A(4, "quarter", 100)
+			.C(5, "quarter", 100)
+			.F(5, "quarter", 100)
+			.C(5, "quarter", 100)
+			.A(4, "quarter", 100)
+			.C(5, "quarter", 100)
+
+			.E(5, "quarter", 100)
+			.Cs(5, "quarter", 100)
+			.A(4, "quarter", 100)
+			.Cs(5, "quarter", 100)
+			.E(5, "quarter", 100)
+			.Cs(5, "quarter", 100)
+			.A(4, "quarter", 100)
+			.Cs(5, "quarter", 100)
+
+			.E(5, "quarter", 100)
+			.Cs(5, "quarter", 100)
+			.A(4, "quarter", 100)
+			.Cs(5, "quarter", 100)
+			.E(5, "quarter", 100)
+			.Cs(5, "quarter", 100)
+			.A(4, "quarter", 100)
+			.Cs(5, "quarter", 100)
+	}
+
+	setBass(): void {
+		Game.bass
+			.D(4, "double", 25)
+			.F(4, "double", 25)
+			.A(3, "full", 25)
+			.Cs(4, "full", 25)
+			.A(4, "full", 25)
+			.Cs(4, "full", 25)
+	}
+
+	setPercussion(): void {
+		Game.percussion
+			.A(5, "quarter", 50)
+			.A(5, "quarter", 0)
+			.A(5, "half", 0)
+			.A(5, "quarter", 50)
+			.A(5, "quarter", 0)
+			.A(5, "half", 0)
+			.A(5, "half", 50)
+			.A(5, "half", 50)
+			.A(5, "half", 0)
+			.A(5, "half", 50)
+
+	}
 }

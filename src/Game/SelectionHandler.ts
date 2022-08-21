@@ -1,6 +1,8 @@
 import * as w4 from "../wasm4"
 import Point from "./Point"
 import { TILE_SIZE } from "../constants"
+import Game from "./Game"
+
 
 export enum Selection {
 	MACHINE_1 = 0,
@@ -27,6 +29,7 @@ export class SelectionHandler {
 
 	handleSelectionInput(justPressed: u8): void {
 		if (justPressed & w4.BUTTON_DOWN) {
+
 			if ([Selection.MACHINE_1, Selection.MACHINE_2].includes(this.selection)) this.selection = this.selection + 1
 			else if (this.selection == Selection.SHOP) this.selection = Selection.SCIENCE_STAND
 		}
@@ -44,6 +47,7 @@ export class SelectionHandler {
 		}
 
 		if (justPressed & w4.BUTTON_2) {
+			Game.bass.reset().noLoop().A(3, "quarter", 50).play()
 			SelectionHandler.selected = true
 		}
 	}

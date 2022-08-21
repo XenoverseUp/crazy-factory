@@ -1,5 +1,5 @@
 import * as w4 from "../wasm4"
-import { DefaultPrompts, DownPipe, Machine as MachineSprite, MachineUpgrade, OnOff, Out, ResearchToUpgrade, RightPipe, Smoke, ToDownRightPipe, ToRightDownPipe, ToTopRightPipe, Upgrade, UpgradePrompt } from "./Assets"
+import { DefaultPrompts, DownPipe, Machine as MachineSprite, MachineUpgrade, Max, OnOff, Out, ResearchToUpgrade, RightPipe, Shop, Skin1, Skin2, Smoke, ToDownRightPipe, ToRightDownPipe, ToTopRightPipe, Upgrade, UpgradePrompt, VagueSkin } from "./Assets"
 import { TILE_SIZE } from "../constants"
 import Point from "./Point"
 import { SelectionHandler } from "./SelectionHandler"
@@ -7,6 +7,7 @@ import { number, pixel, upgradeCosts, vtriangle } from "../utils"
 import Game from "./Game"
 import ScienceStand from "./ScienceStand"
 import Package from "./Package"
+import ShopClass from "./Shop"
 
 const pipeScene = [
 	[".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
@@ -25,7 +26,14 @@ enum ControlPanelSelection {
 	PPD
 }
 
+export enum Skin {
+	DEFAULT,
+	ROUND,
+	VAGUE
+}
+
 export default class Machine {
+	static skin: Skin = Skin.DEFAULT
 	public id: u8
 	public level: u8 = 1
 	public isWorking: boolean = false
@@ -59,7 +67,8 @@ export default class Machine {
 			this.frameCount = 0
 			if (this.isWorking) {
 				this.packages.push(new Package(this.id))
-				Game.balance -= this.productCost // Cost
+				if (!ShopClass.depulso)
+					Game.balance -= this.productCost // Cost
 			}
 		}
 
@@ -73,13 +82,14 @@ export default class Machine {
 		this.packages = this.packages.filter(pkg => pkg.position.x < 7 * TILE_SIZE)
 		const finalLength: u8 = u8(this.packages.length)
 		const sold = initialLength - finalLength
-		Game.balance += i16(sold * this.productPrice) // Price
+		Game.balance += i16(sold * this.productPrice) - (Game.satisfaction < 15000 && sold ? i16(f64(this.productPrice) / f64(4)) : Game.satisfaction < 10000 && sold ? i16(f64(this.productPrice) / f64(2)) : 0) // Price
 	}
 
 	draw(): void {
 		this.packages.forEach(pkg => pkg.draw())
 		store<u16>(w4.DRAW_COLORS, 0x0432)
-		w4.blit(MachineSprite, this.position.x * TILE_SIZE, this.position.y * TILE_SIZE, 2 * TILE_SIZE, 2 * TILE_SIZE, w4.BLIT_2BPP)
+		const mch = Machine.skin == Skin.DEFAULT ? MachineSprite : Machine.skin == Skin.ROUND ? Skin1 : Skin2
+		w4.blit(mch, this.position.x * TILE_SIZE, this.position.y * TILE_SIZE, 2 * TILE_SIZE, 2 * TILE_SIZE, w4.BLIT_2BPP)
 
 		store<u16>(w4.DRAW_COLORS, 0x0001)
 		if (!this.isWorking) w4.text("!", this.position.x * TILE_SIZE + 7, this.position.y * TILE_SIZE + 13)
@@ -112,16 +122,19 @@ export default class Machine {
 			SelectionHandler.selected = false
 			this.selection = ControlPanelSelection.POWER
 			this.selectionPosition = this.selectionDestinations.get(ControlPanelSelection.POWER).toU8()
+			Game.bass.reset().noLoop().A(4, "quarter", 50).play()
 		} else if ((justPressed & w4.BUTTON_RIGHT) && this.selection != ControlPanelSelection.PPD) this.selection += 1
 		else if ((justPressed & w4.BUTTON_LEFT) && this.selection != ControlPanelSelection.POWER) this.selection -= 1
 
 
 		if (justPressed & w4.BUTTON_1) {
 			if (this.selection == ControlPanelSelection.POWER) {
+				Game.percussion.reset().noLoop().A(5, "quarter", 20).play()
 				this.isWorking = !this.isWorking
 			}
 
-			if (this.selection == ControlPanelSelection.UPGRADE && this.canUpgrade) {
+			if (this.selection == ControlPanelSelection.UPGRADE && this.canUpgrade && Game.balance > upgradeCosts[this.level - 1]) {
+				Game.percussion.reset().noLoop().A(5, "quarter", 20).play()
 				this.upgrade()
 			}
 		}
@@ -133,7 +146,7 @@ export default class Machine {
 	}
 
 	updateControlPanel(): void {
-		this.canUpgrade = (ScienceStand.upgradeLevel > this.level && this.level < 4 && Game.balance > upgradeCosts[this.level - 1]) ? true : false
+		this.canUpgrade = (ScienceStand.upgradeLevel > this.level && this.level < 4) ? true : false
 
 		const selectionSpeedX: u8 = u8(NativeMathf.ceil(NativeMathf.abs(
 			this.selectionDestinations.get(this.selection).x - this.selectionPosition.x
@@ -194,10 +207,11 @@ export default class Machine {
 		w4.oval(18, 145 + offsetPower, 4, 4)
 
 		// Upgrade Button
-		if (this.level == 4) return
 
 		store<u16>(w4.DRAW_COLORS, 0x0321)
 		w4.blit(MachineUpgrade, 60, 135, 40, 16, w4.BLIT_2BPP)
+
+		if (this.level == 4) return
 		store<u16>(w4.DRAW_COLORS, 0x3)
 		number(`$${upgradeCosts[this.level - 1]}`, new Point(71, 145))
 	}
@@ -216,7 +230,8 @@ export default class Machine {
 		if (this.selection == ControlPanelSelection.POWER) w4.blitSub(DefaultPrompts, 62, 8 * TILE_SIZE - 9, 34, 5, 0, 0, 144, w4.BLIT_1BPP)
 		if (this.selection == ControlPanelSelection.PPD) w4.blitSub(DefaultPrompts, 25, 8 * TILE_SIZE - 9, 109, 5, 35, 0, 144, w4.BLIT_1BPP)
 		if (this.selection == ControlPanelSelection.UPGRADE) {
-			if (!this.canUpgrade) w4.blit(ResearchToUpgrade, 9, 8 * TILE_SIZE - 9, 144, 5, w4.BLIT_1BPP)
+			if (this.level == 4) w4.blit(Max, 72, 8 * TILE_SIZE - 9, 16, 5, w4.BLIT_1BPP)
+			else if (!this.canUpgrade) w4.blit(ResearchToUpgrade, 9, 8 * TILE_SIZE - 9, 144, 5, w4.BLIT_1BPP)
 			else w4.blit(UpgradePrompt, 61, 8 * TILE_SIZE - 9, 48, 5, w4.BLIT_1BPP)
 		}
 	}
